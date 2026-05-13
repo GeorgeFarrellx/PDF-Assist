@@ -233,3 +233,54 @@ class PDFDocument:
         annot.set_border(width=2)
         annot.update()
         self._dirty = True
+
+    def find_annotation_at_point(self, page_index: int, x: float, y: float) -> int | None:
+        self._validate_page_index(page_index)
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        try:
+            page = self.doc.load_page(page_index)
+            point = fitz.Point(x, y)
+            for annot in page.annots() or []:
+                if annot.rect.contains(point):
+                    return annot.xref
+            return None
+        except PDFDocumentError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to find annotation: {exc}") from exc
+
+    def get_annotation_rect(self, page_index: int, annotation_id: int) -> fitz.Rect:
+        self._validate_page_index(page_index)
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        try:
+            page = self.doc.load_page(page_index)
+            for annot in page.annots() or []:
+                if annot.xref == annotation_id:
+                    return fitz.Rect(annot.rect)
+            raise PDFDocumentError("Selected annotation no longer exists on this page.")
+        except PDFDocumentError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to read annotation bounds: {exc}") from exc
+
+    def delete_annotation(self, page_index: int, annotation_id: int) -> None:
+        self._validate_page_index(page_index)
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        try:
+            page = self.doc.load_page(page_index)
+            deleted = False
+            for annot in page.annots() or []:
+                if annot.xref == annotation_id:
+                    page.delete_annot(annot)
+                    deleted = True
+                    break
+            if not deleted:
+                raise PDFDocumentError("Selected annotation no longer exists on this page.")
+            self._dirty = True
+        except PDFDocumentError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to delete selected annotation: {exc}") from exc

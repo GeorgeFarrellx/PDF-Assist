@@ -19,8 +19,10 @@ class PageCanvas(QWidget):
         self.drag_current: QPoint | None = None
         self.freehand_points: list[QPoint] = []
         self.on_add_text: Callable[[QPoint], None] | None = None
+        self.on_select_annotation: Callable[[QPoint], None] | None = None
         self.on_highlight: Callable[[QRect], None] | None = None
         self.on_freehand: Callable[[list[QPoint]], None] | None = None
+        self.selected_annotation_rect: QRect | None = None
 
     def set_pixmap(self, pixmap: QPixmap) -> None:
         self.pixmap = pixmap
@@ -39,6 +41,9 @@ class PageCanvas(QWidget):
             painter.setPen(QPen(Qt.red, 2, Qt.SolidLine))
             for i in range(1, len(self.freehand_points)):
                 painter.drawLine(self.freehand_points[i - 1], self.freehand_points[i])
+        if self.selected_annotation_rect:
+            painter.setPen(QPen(Qt.blue, 2, Qt.SolidLine))
+            painter.drawRect(self.selected_annotation_rect)
         super().paintEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
@@ -47,6 +52,10 @@ class PageCanvas(QWidget):
         if self.tool_mode == ToolMode.ADD_TEXT and event.button() == Qt.LeftButton:
             if self.on_add_text:
                 self.on_add_text(event.position().toPoint())
+            return
+        if self.tool_mode == ToolMode.SELECT_ANNOTATION and event.button() == Qt.LeftButton:
+            if self.on_select_annotation:
+                self.on_select_annotation(event.position().toPoint())
             return
         if self.tool_mode in (ToolMode.HIGHLIGHT, ToolMode.FREEHAND) and event.button() == Qt.LeftButton:
             self.drag_start = event.position().toPoint()
@@ -97,6 +106,20 @@ class PDFViewer(QScrollArea):
         image = QImage.fromData(image_data)
         pixmap = QPixmap.fromImage(image)
         self.canvas.set_pixmap(pixmap)
+
+    def set_selected_annotation_rect_pdf(self, rect: tuple[float, float, float, float] | None) -> None:
+        if rect is None:
+            self.canvas.selected_annotation_rect = None
+            self.canvas.update()
+            return
+        x1, y1, x2, y2 = rect
+        self.canvas.selected_annotation_rect = QRect(
+            int(round(x1 * self.zoom_factor)),
+            int(round(y1 * self.zoom_factor)),
+            int(round((x2 - x1) * self.zoom_factor)),
+            int(round((y2 - y1) * self.zoom_factor)),
+        ).normalized()
+        self.canvas.update()
 
     def set_page_size(self, width: float, height: float) -> None:
         self.page_size = (width, height)
