@@ -26,6 +26,7 @@
 - Zoom in/out and fit width/page.
 - Rotate, delete, insert, move up/down, and duplicate pages.
 - Add text, highlight rectangles, and freehand drawing annotations.
+- Undo/redo for page operations and annotation edits.
 - Save edited output with Save As.
 - Extract current page to a separate one-page PDF without modifying the open document.
 - Thumbnail sidebar for page previews and click-to-navigate page selection.
@@ -35,7 +36,7 @@
 - MVP scope only; direct editing of existing PDF text is not implemented.
 - No OCR functionality.
 - Thumbnail sidebar supports navigation only (no drag-and-drop page reordering yet).
-- No undo/redo.
+- Undo/redo uses in-memory PDF snapshots; very large PDFs may use more memory.
 - Password-protected files are blocked instead of prompting for password.
 - Same-path Save As overwrite is currently restricted for safety until incremental-save handling is added safely.
 
