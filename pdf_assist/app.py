@@ -38,6 +38,9 @@ class MainWindow(QMainWindow):
         self.thumbnail_sidebar = ThumbnailSidebar()
         self.current_page = 0
         self.history = PDFHistory(max_depth=20)
+        self.selected_annotation_page: int | None = None
+        self.selected_annotation_id: int | None = None
+        self.selected_annotation_rect: fitz.Rect | None = None
 
         self.page_edit = QLineEdit("1")
         self.page_total_label = QLabel("/ 0")
@@ -109,6 +112,8 @@ class MainWindow(QMainWindow):
         self.undo_action = QAction("Undo", self)
         self.undo_action.setShortcut(QKeySequence.Undo)
         self.undo_action.triggered.connect(self.undo)
+        self.delete_selected_annotation_action = QAction("Delete Selected Annotation", self)
+        self.delete_selected_annotation_action.triggered.connect(self.delete_selected_annotation)
         self.redo_action = QAction("Redo", self)
         self.redo_action.setShortcut(QKeySequence.Redo)
         self.redo_action.setShortcuts([QKeySequence.Redo, QKeySequence("Ctrl+Shift+Z")])
@@ -116,6 +121,8 @@ class MainWindow(QMainWindow):
 
         self.tool_view_action = QAction("Select/View", self)
         self.tool_view_action.triggered.connect(lambda: self.set_tool(ToolMode.VIEW))
+        self.tool_select_annotation_action = QAction("Select Annotation", self)
+        self.tool_select_annotation_action.triggered.connect(lambda: self.set_tool(ToolMode.SELECT_ANNOTATION))
         self.tool_text_action = QAction("Add Text Box", self)
         self.tool_text_action.triggered.connect(lambda: self.set_tool(ToolMode.ADD_TEXT))
         self.tool_highlight_action = QAction("Highlight", self)
@@ -125,16 +132,16 @@ class MainWindow(QMainWindow):
 
         for a in [self.open_action, self.save_action, self.close_action, self.exit_action]:
             file_menu.addAction(a)
-        for a in [self.undo_action, self.redo_action]:
+        for a in [self.undo_action, self.redo_action, self.delete_selected_annotation_action]:
             edit_menu.addAction(a)
         for a in [self.prev_action, self.next_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.move_page_up_action, self.move_page_down_action, self.duplicate_page_action, self.extract_current_page_action]:
             page_menu.addAction(a)
         for a in [self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action]:
             view_menu.addAction(a)
-        for a in [self.tool_view_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
+        for a in [self.tool_view_action, self.tool_select_annotation_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
             tool_menu.addAction(a)
 
-        for a in [self.open_action, self.save_action, self.undo_action, self.redo_action, self.prev_action, self.next_action, self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.move_page_up_action, self.move_page_down_action, self.duplicate_page_action, self.extract_current_page_action, self.tool_view_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
+        for a in [self.open_action, self.save_action, self.undo_action, self.redo_action, self.prev_action, self.next_action, self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.move_page_up_action, self.move_page_down_action, self.duplicate_page_action, self.extract_current_page_action, self.tool_view_action, self.tool_select_annotation_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
             tb.addAction(a)
 
         nav = QWidget()
@@ -153,6 +160,7 @@ class MainWindow(QMainWindow):
 
     def _wire_viewer_callbacks(self) -> None:
         self.viewer.canvas.on_add_text = self._on_add_text
+        self.viewer.canvas.on_select_annotation = self.select_annotation_at_point
         self.viewer.canvas.on_highlight = self._on_highlight
         self.viewer.canvas.on_freehand = self._on_freehand
         self.viewer.on_fit_zoom_changed = self._refresh_page
@@ -174,6 +182,7 @@ class MainWindow(QMainWindow):
             self.zoom_label.setText(f"{int(self.viewer.zoom_factor * 100)}%")
             self.statusBar().showMessage(f"Page {self.current_page + 1} of {self.doc.page_count}")
             self._update_current_thumbnail()
+            self.update_selected_annotation_overlay()
             self._update_ui_state()
         except PDFDocumentError as exc:
             self._show_error("Render Error", str(exc))
@@ -201,11 +210,12 @@ class MainWindow(QMainWindow):
         if page_index < 0 or page_index >= self.doc.page_count:
             return
         self.current_page = page_index
+        self.clear_selected_annotation()
         self._refresh_page()
 
     def _update_ui_state(self) -> None:
         enabled = self.doc.is_open
-        for a in [self.save_action, self.close_action, self.next_action, self.prev_action, self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.tool_view_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
+        for a in [self.save_action, self.close_action, self.next_action, self.prev_action, self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.tool_view_action, self.tool_select_annotation_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
             a.setEnabled(enabled)
         self.duplicate_page_action.setEnabled(enabled)
         self.extract_current_page_action.setEnabled(enabled)
@@ -213,6 +223,7 @@ class MainWindow(QMainWindow):
         self.move_page_down_action.setEnabled(enabled and self.current_page < self.doc.page_count - 1)
         self.undo_action.setEnabled(enabled and self.history.can_undo)
         self.redo_action.setEnabled(enabled and self.history.can_redo)
+        self.delete_selected_annotation_action.setEnabled(enabled and self.selected_annotation_page == self.current_page and self.selected_annotation_id is not None)
 
     def _snapshot_state(self, action_label: str) -> HistoryEntry:
         return HistoryEntry(pdf_bytes=self.doc.to_bytes(), page_index=self.current_page, action_label=action_label)
@@ -239,6 +250,7 @@ class MainWindow(QMainWindow):
             self._show_error("Open Error", str(exc))
             return
         self.current_page = 0
+        self.clear_selected_annotation()
         self.history.clear()
         self.viewer.zoom_factor = 1.0
         self._update_ui_state()
@@ -263,6 +275,7 @@ class MainWindow(QMainWindow):
         self.doc.close()
         self.history.clear()
         self.current_page = 0
+        self.clear_selected_annotation()
         self.viewer.canvas.pixmap = None
         self.viewer.canvas.update()
         self.thumbnail_sidebar.clear()
@@ -274,11 +287,13 @@ class MainWindow(QMainWindow):
     def next_page(self) -> None:
         if self.current_page + 1 < self.doc.page_count:
             self.current_page += 1
+            self.clear_selected_annotation()
             self._refresh_page()
 
     def prev_page(self) -> None:
         if self.current_page > 0:
             self.current_page -= 1
+            self.clear_selected_annotation()
             self._refresh_page()
 
     def goto_page(self) -> None:
@@ -293,6 +308,7 @@ class MainWindow(QMainWindow):
             self._show_error("Invalid Page", "Page number is out of range.")
             return
         self.current_page = page
+        self.clear_selected_annotation()
         self._refresh_page()
 
     def zoom_in(self) -> None:
@@ -327,6 +343,7 @@ class MainWindow(QMainWindow):
             return
         try:
             self.doc.rotate_page(self.current_page, degrees)
+            self.clear_selected_annotation()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -341,6 +358,7 @@ class MainWindow(QMainWindow):
                 return
             self.doc.delete_page(self.current_page)
             self.current_page = min(self.current_page, self.doc.page_count - 1)
+            self.clear_selected_annotation()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -356,6 +374,7 @@ class MainWindow(QMainWindow):
             if not self._record_before_edit("Insert Pages"):
                 return
             self.doc.insert_pdf(source_path, at_index=at_index)
+            self.clear_selected_annotation()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -372,6 +391,7 @@ class MainWindow(QMainWindow):
                 return
             self.doc.move_page(self.current_page, target_index)
             self.current_page = target_index
+            self.clear_selected_annotation()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -388,6 +408,7 @@ class MainWindow(QMainWindow):
                 return
             self.doc.move_page(self.current_page, target_index)
             self.current_page = target_index
+            self.clear_selected_annotation()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -398,6 +419,7 @@ class MainWindow(QMainWindow):
             if not self._record_before_edit("Duplicate Page"):
                 return
             self.current_page = self.doc.duplicate_page(self.current_page)
+            self.clear_selected_annotation()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -418,6 +440,55 @@ class MainWindow(QMainWindow):
     def set_tool(self, mode: ToolMode) -> None:
         self.viewer.set_tool_mode(mode)
         self.statusBar().showMessage(f"Tool: {mode.value}")
+
+    def clear_selected_annotation(self) -> None:
+        self.selected_annotation_page = None
+        self.selected_annotation_id = None
+        self.selected_annotation_rect = None
+        self.update_selected_annotation_overlay()
+
+    def update_selected_annotation_overlay(self) -> None:
+        if self.selected_annotation_page != self.current_page or not self.selected_annotation_rect:
+            self.viewer.set_selected_annotation_rect_pdf(None)
+            return
+        rect = self.selected_annotation_rect
+        self.viewer.set_selected_annotation_rect_pdf((rect.x0, rect.y0, rect.x1, rect.y1))
+
+    def select_annotation_at_point(self, point) -> None:
+        if not self.doc.is_open:
+            return
+        x, y = self.viewer.widget_to_pdf(point)
+        try:
+            annotation_id = self.doc.find_annotation_at_point(self.current_page, x, y)
+            if annotation_id is None:
+                self.clear_selected_annotation()
+                self.statusBar().showMessage("No annotation selected")
+                self._update_ui_state()
+                return
+            self.selected_annotation_page = self.current_page
+            self.selected_annotation_id = annotation_id
+            self.selected_annotation_rect = self.doc.get_annotation_rect(self.current_page, annotation_id)
+            self.update_selected_annotation_overlay()
+            self.statusBar().showMessage("Selected annotation")
+            self._update_ui_state()
+        except PDFDocumentError as exc:
+            self._show_error("Annotation Error", str(exc))
+
+    def delete_selected_annotation(self) -> None:
+        if self.selected_annotation_page != self.current_page or self.selected_annotation_id is None:
+            return
+        confirm = QMessageBox.question(self, "Delete Selected Annotation", "Delete the selected annotation?", QMessageBox.Yes | QMessageBox.No)
+        if confirm != QMessageBox.Yes:
+            return
+        try:
+            if not self._record_before_edit("Delete Selected Annotation"):
+                return
+            self.doc.delete_annotation(self.current_page, self.selected_annotation_id)
+            self.clear_selected_annotation()
+            self._refresh_thumbnails()
+            self._refresh_page()
+        except PDFDocumentError as exc:
+            self._show_error("Annotation Error", str(exc))
 
     def _on_add_text(self, point) -> None:
         text, ok = QInputDialog.getText(self, "Add Text", "Enter text:")
@@ -465,6 +536,7 @@ class MainWindow(QMainWindow):
         try:
             self.history.push_redo(self._snapshot_state(entry.action_label))
             self.doc.restore_from_bytes(entry.pdf_bytes)
+            self.clear_selected_annotation()
             self.current_page = min(max(entry.page_index, 0), self.doc.page_count - 1)
             self._refresh_thumbnails()
             self._refresh_page()
@@ -484,6 +556,7 @@ class MainWindow(QMainWindow):
         try:
             self.history.push_undo(self._snapshot_state(entry.action_label))
             self.doc.restore_from_bytes(entry.pdf_bytes)
+            self.clear_selected_annotation()
             self.current_page = min(max(entry.page_index, 0), self.doc.page_count - 1)
             self._refresh_thumbnails()
             self._refresh_page()

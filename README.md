@@ -16,9 +16,11 @@ PDF Assist is a desktop PDF editor MVP built with PySide6 and PyMuPDF. It provid
   - Extract current page to a separate one-page PDF
 - Basic tools:
   - Select / view mode
+  - Select Annotation mode (click to select an annotation on the current page)
   - Add text box mode (click to place text)
   - Highlight mode (drag rectangle)
   - Freehand drawing mode (drag to draw)
+- Delete Selected Annotation action (with confirmation) for currently selected annotation
 - Undo/redo for page operations and annotation edits (Rotate, Delete, Insert, Move Up/Down, Duplicate, Add Text, Highlight, Freehand)
 - Save As for writing edited PDFs to a new path
 - Unsaved-change warning before opening a different PDF, closing a document, or exiting
@@ -45,6 +47,8 @@ python main.py
 - Complex layout-aware editing of existing content is not implemented.
 - Full direct editing of existing PDF text like Adobe Acrobat is complex and will be added gradually. This first version supports viewing, page operations, text insertion, highlighting, and drawing.
 - Annotation placement is tied to current render scale and page rotation behavior from PyMuPDF.
+- Annotation selection currently uses annotation bounds hit-testing; some tightly overlapping annotation types may require precise clicking.
+- Moving/resizing existing annotations is not implemented yet.
 - Save As is intentionally safer: saving to the exact currently-open file path is restricted for now.
 - Same-path overwrite may remain limited until incremental-save handling is implemented safely.
 - Undo/redo is an in-memory snapshot MVP; very large PDFs may consume more memory.
