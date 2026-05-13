@@ -15,6 +15,7 @@
 - [pdf_assist/app.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/app.py)
 - [pdf_assist/document.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/document.py)
 - [pdf_assist/viewer.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/viewer.py)
+- [pdf_assist/thumbnails.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/thumbnails.py)
 - [pdf_assist/tools.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/tools.py)
 
 ## Current Implemented Capabilities
@@ -26,12 +27,13 @@
 - Rotate, delete, and insert pages.
 - Add text, highlight rectangles, and freehand drawing annotations.
 - Save edited output with Save As.
+- Thumbnail sidebar for page previews and click-to-navigate page selection.
 
 ## Known Limitations
 
 - MVP scope only; direct editing of existing PDF text is not implemented.
 - No OCR functionality.
-- No thumbnail sidebar.
+- Thumbnail sidebar supports navigation only (no drag-and-drop page reordering yet).
 - No undo/redo.
 - Password-protected files are blocked instead of prompting for password.
 - Same-path Save As overwrite is currently restricted for safety until incremental-save handling is added safely.

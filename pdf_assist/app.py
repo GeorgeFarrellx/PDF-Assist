@@ -3,7 +3,6 @@ from __future__ import annotations
 import sys
 
 import fitz
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -14,13 +13,14 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QMessageBox,
-    QPushButton,
     QStatusBar,
     QToolBar,
+    QSplitter,
     QWidget,
 )
 
 from .document import PDFDocument, PDFDocumentError
+from .thumbnails import ThumbnailSidebar
 from .tools import ToolMode
 from .viewer import PDFViewer
 
@@ -33,6 +33,7 @@ class MainWindow(QMainWindow):
 
         self.doc = PDFDocument()
         self.viewer = PDFViewer()
+        self.thumbnail_sidebar = ThumbnailSidebar()
         self.current_page = 0
 
         self.page_edit = QLineEdit("1")
@@ -44,7 +45,13 @@ class MainWindow(QMainWindow):
         self._update_ui_state()
 
     def _build_ui(self) -> None:
-        self.setCentralWidget(self.viewer)
+        splitter = QSplitter()
+        splitter.addWidget(self.thumbnail_sidebar)
+        splitter.addWidget(self.viewer)
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([220, 880])
+        self.setCentralWidget(splitter)
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Ready")
 
@@ -128,6 +135,7 @@ class MainWindow(QMainWindow):
         self.viewer.canvas.on_highlight = self._on_highlight
         self.viewer.canvas.on_freehand = self._on_freehand
         self.viewer.on_fit_zoom_changed = self._refresh_page
+        self.thumbnail_sidebar.set_page_selected_callback(self._on_thumbnail_selected)
 
     def _show_error(self, title: str, message: str) -> None:
         QMessageBox.critical(self, title, message)
@@ -144,8 +152,34 @@ class MainWindow(QMainWindow):
             self.page_edit.setText(str(self.current_page + 1))
             self.zoom_label.setText(f"{int(self.viewer.zoom_factor * 100)}%")
             self.statusBar().showMessage(f"Page {self.current_page + 1} of {self.doc.page_count}")
+            self._update_current_thumbnail()
         except PDFDocumentError as exc:
             self._show_error("Render Error", str(exc))
+
+    def _refresh_thumbnails(self) -> None:
+        if not self.doc.is_open:
+            self.thumbnail_sidebar.clear()
+            return
+        thumbnails: list[tuple[bytes, int, int, int]] = []
+        try:
+            for page_index in range(self.doc.page_count):
+                thumbnail = self.doc.render_thumbnail(page_index)
+                thumbnails.append((thumbnail.image, thumbnail.width, thumbnail.height, page_index + 1))
+            self.thumbnail_sidebar.set_thumbnails(thumbnails)
+            self._update_current_thumbnail()
+        except PDFDocumentError as exc:
+            self._show_error("Thumbnail Error", str(exc))
+
+    def _update_current_thumbnail(self) -> None:
+        self.thumbnail_sidebar.set_current_page(self.current_page)
+
+    def _on_thumbnail_selected(self, page_index: int) -> None:
+        if not self.doc.is_open:
+            return
+        if page_index < 0 or page_index >= self.doc.page_count:
+            return
+        self.current_page = page_index
+        self._refresh_page()
 
     def _update_ui_state(self) -> None:
         enabled = self.doc.is_open
@@ -166,6 +200,7 @@ class MainWindow(QMainWindow):
         self.current_page = 0
         self.viewer.zoom_factor = 1.0
         self._update_ui_state()
+        self._refresh_thumbnails()
         self._refresh_page()
 
     def save_as(self) -> None:
@@ -187,6 +222,7 @@ class MainWindow(QMainWindow):
         self.current_page = 0
         self.viewer.canvas.pixmap = None
         self.viewer.canvas.update()
+        self.thumbnail_sidebar.clear()
         self.page_total_label.setText("/ 0")
         self.page_edit.setText("1")
         self.statusBar().showMessage("Closed document")
@@ -246,6 +282,7 @@ class MainWindow(QMainWindow):
     def rotate_page(self, degrees: int) -> None:
         try:
             self.doc.rotate_page(self.current_page, degrees)
+            self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
             self._show_error("Page Operation Error", str(exc))
@@ -257,6 +294,7 @@ class MainWindow(QMainWindow):
         try:
             self.doc.delete_page(self.current_page)
             self.current_page = min(self.current_page, self.doc.page_count - 1)
+            self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
             self._show_error("Page Operation Error", str(exc))
@@ -269,6 +307,7 @@ class MainWindow(QMainWindow):
         at_index = self.current_page if choice == QMessageBox.Yes else None
         try:
             self.doc.insert_pdf(source_path, at_index=at_index)
+            self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
             self._show_error("Page Operation Error", str(exc))
