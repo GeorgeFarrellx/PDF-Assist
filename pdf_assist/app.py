@@ -271,11 +271,58 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getOpenFileName(self, "Open PDF", "", "PDF Files (*.pdf)")
         if not path:
             return
-        try:
-            self.doc.open(path)
-        except PDFDocumentError as exc:
-            self._show_error("Open Error", str(exc))
-            return
+
+        password: str | None = None
+        max_attempts = 3
+        attempts = 0
+        while True:
+            try:
+                self.doc.open(path, password=password)
+                break
+            except PDFDocumentError as exc:
+                message = str(exc)
+                if message == "PASSWORD_REQUIRED":
+                    text, ok = QInputDialog.getText(
+                        self,
+                        "Password Required",
+                        "This PDF is password protected. Enter the password to open it.",
+                        QLineEdit.Password,
+                    )
+                    if not ok:
+                        self.statusBar().showMessage("Password entry cancelled.")
+                        return
+                    password = text
+                    attempts += 1
+                    continue
+                if message == "Incorrect password. Please try again.":
+                    attempts += 1
+                    if attempts >= max_attempts:
+                        self._show_error("Open Error", message)
+                        return
+                    retry = QMessageBox.question(
+                        self,
+                        "Open Error",
+                        "Incorrect password. Please try again.",
+                        QMessageBox.Yes | QMessageBox.Cancel,
+                        QMessageBox.Yes,
+                    )
+                    if retry != QMessageBox.Yes:
+                        self.statusBar().showMessage("Password entry cancelled.")
+                        return
+                    text, ok = QInputDialog.getText(
+                        self,
+                        "Password Required",
+                        "This PDF is password protected. Enter the password to open it.",
+                        QLineEdit.Password,
+                    )
+                    if not ok:
+                        self.statusBar().showMessage("Password entry cancelled.")
+                        return
+                    password = text
+                    continue
+                self._show_error("Open Error", message)
+                return
+
         self.current_page = 0
         self.clear_selected_annotation()
         self.clear_search()
