@@ -84,6 +84,25 @@ class PDFDocument:
         pix = page.get_pixmap(matrix=mat, alpha=False)
         return RenderResult(image=pix.tobytes("ppm"), width=pix.width, height=pix.height)
 
+    def render_thumbnail(self, page_index: int, max_width: int = 140) -> RenderResult:
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        if max_width <= 0:
+            raise PDFDocumentError("Thumbnail width must be greater than zero.")
+        try:
+            page = self.doc.load_page(page_index)
+            rect = page.rect
+            if rect.width <= 0 or rect.height <= 0:
+                raise PDFDocumentError("Page has invalid dimensions for thumbnail rendering.")
+            scale = max_width / rect.width
+            mat = fitz.Matrix(scale, scale)
+            pix = page.get_pixmap(matrix=mat, alpha=False)
+            return RenderResult(image=pix.tobytes("ppm"), width=pix.width, height=pix.height)
+        except PDFDocumentError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to render thumbnail for page {page_index + 1}: {exc}") from exc
+
     def rotate_page(self, page_index: int, degrees: int) -> None:
         if not self.doc:
             raise PDFDocumentError("No document loaded.")

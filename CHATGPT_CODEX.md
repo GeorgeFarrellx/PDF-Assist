@@ -1,6 +1,6 @@
 # Codex Notes
 
-- **Latest reference label:** PDF Assist Prompt 2
-- **Current change summary:** Added project context/notes files, document dirty-state tracking, unsaved-change safety prompts on open/close/exit, safer Save As behavior for same-path writes, and stable fit width/fit page recalculation from original PDF page dimensions with resize updates.
-- **Known limitations / follow-up:** Same-path overwrite remains restricted until safe incremental save flow is implemented and validated.
+- **Latest reference label:** PDF Assist Prompt 3
+- **Current change summary:** Added a resizable left-hand thumbnail sidebar with page previews/page numbers and click-to-navigate support, plus thumbnail refresh hooks on open/rotate/delete/insert/close and a read-only thumbnail renderer in document.py.
+- **Known limitations / follow-up:** Consider lazy thumbnail rendering/caching for very large PDFs; drag-and-drop page reordering is intentionally not implemented yet.
 - **Reminder:** Future PRs should include their reference label in PR title or PR notes.

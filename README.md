@@ -5,8 +5,8 @@ PDF Assist is a desktop PDF editor MVP built with PySide6 and PyMuPDF. It provid
 ## MVP Features
 
 - Open PDF files and render pages in a central viewer
-- Page navigation: next, previous, and jump to page number
-- Zoom controls: zoom in, zoom out, fit width, fit page
+- Page navigation: next, previous, jump to page number, and thumbnail sidebar navigation
+- Thumbnail sidebar with page previews and page numbers
 - Page operations:
   - Rotate current page clockwise / anticlockwise
   - Delete current page (with confirmation)
@@ -49,6 +49,6 @@ python main.py
 - Annotation selection/move/resize controls
 - Undo/redo stack
 - Password prompt for encrypted PDFs
-- Multi-page thumbnails panel
+- Drag-and-drop page reordering from thumbnails (not implemented yet; sidebar is navigation-only today)
 - Better text style controls (font family, color, alignment)
 - Export options and optimization presets
