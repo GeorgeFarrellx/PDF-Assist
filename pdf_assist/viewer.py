@@ -87,16 +87,19 @@ class PDFViewer(QScrollArea):
         self.setWidgetResizable(False)
         self.zoom_factor = 1.0
         self.fit_mode: str | None = None
-        self.page_size = (0, 0)
+        self.page_size = (0.0, 0.0)
+        self.on_fit_zoom_changed: Callable[[], None] | None = None
 
     def set_tool_mode(self, mode: ToolMode) -> None:
         self.canvas.tool_mode = mode
 
     def show_page(self, image_data: bytes, width: int, height: int) -> None:
-        self.page_size = (width, height)
         image = QImage.fromData(image_data)
         pixmap = QPixmap.fromImage(image)
         self.canvas.set_pixmap(pixmap)
+
+    def set_page_size(self, width: float, height: float) -> None:
+        self.page_size = (width, height)
 
     def zoom_in(self) -> float:
         self.fit_mode = None
@@ -128,10 +131,15 @@ class PDFViewer(QScrollArea):
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
+        changed = False
         if self.fit_mode == "width":
             self.fit_width()
+            changed = True
         elif self.fit_mode == "page":
             self.fit_page()
+            changed = True
+        if changed and self.on_fit_zoom_changed:
+            self.on_fit_zoom_changed()
 
     def widget_to_pdf(self, point: QPoint) -> tuple[float, float]:
         return point.x() / self.zoom_factor, point.y() / self.zoom_factor
