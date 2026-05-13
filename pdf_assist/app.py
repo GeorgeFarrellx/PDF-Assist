@@ -619,6 +619,7 @@ class MainWindow(QMainWindow):
             self.history.push_undo(self._snapshot_state(entry.action_label))
             self.doc.restore_from_bytes(entry.pdf_bytes)
             self.clear_selected_annotation()
+            self.clear_search()
             self.current_page = min(max(entry.page_index, 0), self.doc.page_count - 1)
             self._refresh_thumbnails()
             self._refresh_page()
