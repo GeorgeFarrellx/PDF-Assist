@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 import fitz
+from .search import SearchResult
 
 
 class PDFDocumentError(Exception):
@@ -124,6 +125,27 @@ class PDFDocument:
             raise
         except Exception as exc:  # noqa: BLE001
             raise PDFDocumentError(f"Failed to render thumbnail for page {page_index + 1}: {exc}") from exc
+
+    def search_text(self, query: str) -> list[SearchResult]:
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        term = query.strip()
+        if not term:
+            return []
+        results: list[SearchResult] = []
+        try:
+            for page_index in range(self.doc.page_count):
+                page = self.doc.load_page(page_index)
+                for rect in page.search_for(term):
+                    results.append(
+                        SearchResult(
+                            page_index=page_index,
+                            rect=(rect.x0, rect.y0, rect.x1, rect.y1),
+                        )
+                    )
+            return results
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to search PDF text: {exc}") from exc
 
     def rotate_page(self, page_index: int, degrees: int) -> None:
         if not self.doc:

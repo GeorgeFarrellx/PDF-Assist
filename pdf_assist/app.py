@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from .document import PDFDocument, PDFDocumentError
 from .history import HistoryEntry, PDFHistory
+from .search import SearchState
 from .thumbnails import ThumbnailSidebar
 from .tools import ToolMode
 from .viewer import PDFViewer
@@ -42,10 +43,13 @@ class MainWindow(QMainWindow):
         self.selected_annotation_page: int | None = None
         self.selected_annotation_id: int | None = None
         self.selected_annotation_rect: fitz.Rect | None = None
+        self.search_state = SearchState()
 
         self.page_edit = QLineEdit("1")
         self.page_total_label = QLabel("/ 0")
         self.zoom_label = QLabel("100%")
+        self.search_input = QLineEdit()
+        self.search_count_label = QLabel("0 / 0")
 
         self._build_ui()
         self._wire_viewer_callbacks()
@@ -119,6 +123,9 @@ class MainWindow(QMainWindow):
         self.redo_action.setShortcut(QKeySequence.Redo)
         self.redo_action.setShortcuts([QKeySequence.Redo, QKeySequence("Ctrl+Shift+Z")])
         self.redo_action.triggered.connect(self.redo)
+        self.find_action = QAction("Find", self)
+        self.find_action.setShortcut(QKeySequence.Find)
+        self.find_action.triggered.connect(self.focus_search_input)
 
         self.tool_view_action = QAction("Select/View", self)
         self.tool_view_action.triggered.connect(lambda: self.set_tool(ToolMode.VIEW))
@@ -133,7 +140,7 @@ class MainWindow(QMainWindow):
 
         for a in [self.open_action, self.save_action, self.close_action, self.exit_action]:
             file_menu.addAction(a)
-        for a in [self.undo_action, self.redo_action, self.delete_selected_annotation_action]:
+        for a in [self.undo_action, self.redo_action, self.delete_selected_annotation_action, self.find_action]:
             edit_menu.addAction(a)
         for a in [self.prev_action, self.next_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.move_page_up_action, self.move_page_down_action, self.duplicate_page_action, self.extract_current_page_action]:
             page_menu.addAction(a)
@@ -156,6 +163,23 @@ class MainWindow(QMainWindow):
         nav_layout.addSpacing(20)
         nav_layout.addWidget(QLabel("Zoom:"))
         nav_layout.addWidget(self.zoom_label)
+        nav_layout.addSpacing(20)
+        nav_layout.addWidget(QLabel("Find:"))
+        self.search_input.setPlaceholderText("Search text")
+        self.search_input.setFixedWidth(180)
+        self.search_input.returnPressed.connect(self.run_search)
+        nav_layout.addWidget(self.search_input)
+        self.find_button = QAction("Find", self)
+        self.find_button.triggered.connect(self.run_search)
+        self.search_prev_button = QAction("Previous Result", self)
+        self.search_prev_button.triggered.connect(self.goto_previous_result)
+        self.search_next_button = QAction("Next Result", self)
+        self.search_next_button.triggered.connect(self.goto_next_result)
+        self.search_clear_button = QAction("Clear Search", self)
+        self.search_clear_button.triggered.connect(self.clear_search)
+        for action in [self.find_button, self.search_prev_button, self.search_next_button, self.search_clear_button]:
+            tb.addAction(action)
+        nav_layout.addWidget(self.search_count_label)
         nav_layout.addStretch()
         tb.addWidget(nav)
 
@@ -185,6 +209,7 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Page {self.current_page + 1} of {self.doc.page_count}")
             self._update_current_thumbnail()
             self.update_selected_annotation_overlay()
+            self._update_search_overlay()
             self._update_ui_state()
         except PDFDocumentError as exc:
             self._show_error("Render Error", str(exc))
@@ -253,6 +278,7 @@ class MainWindow(QMainWindow):
             return
         self.current_page = 0
         self.clear_selected_annotation()
+        self.clear_search()
         self.history.clear()
         self.viewer.zoom_factor = 1.0
         self._update_ui_state()
@@ -278,6 +304,7 @@ class MainWindow(QMainWindow):
         self.history.clear()
         self.current_page = 0
         self.clear_selected_annotation()
+        self.clear_search()
         self.viewer.canvas.pixmap = None
         self.viewer.canvas.update()
         self.thumbnail_sidebar.clear()
@@ -346,6 +373,7 @@ class MainWindow(QMainWindow):
         try:
             self.doc.rotate_page(self.current_page, degrees)
             self.clear_selected_annotation()
+            self.clear_search()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -361,6 +389,7 @@ class MainWindow(QMainWindow):
             self.doc.delete_page(self.current_page)
             self.current_page = min(self.current_page, self.doc.page_count - 1)
             self.clear_selected_annotation()
+            self.clear_search()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -377,6 +406,7 @@ class MainWindow(QMainWindow):
                 return
             self.doc.insert_pdf(source_path, at_index=at_index)
             self.clear_selected_annotation()
+            self.clear_search()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -394,6 +424,7 @@ class MainWindow(QMainWindow):
             self.doc.move_page(self.current_page, target_index)
             self.current_page = target_index
             self.clear_selected_annotation()
+            self.clear_search()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -411,6 +442,7 @@ class MainWindow(QMainWindow):
             self.doc.move_page(self.current_page, target_index)
             self.current_page = target_index
             self.clear_selected_annotation()
+            self.clear_search()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -422,6 +454,7 @@ class MainWindow(QMainWindow):
                 return
             self.current_page = self.doc.duplicate_page(self.current_page)
             self.clear_selected_annotation()
+            self.clear_search()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -512,6 +545,7 @@ class MainWindow(QMainWindow):
                 return
             self.doc.delete_annotation(self.current_page, self.selected_annotation_id)
             self.clear_selected_annotation()
+            self.clear_search()
             self._refresh_thumbnails()
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -564,6 +598,7 @@ class MainWindow(QMainWindow):
             self.history.push_redo(self._snapshot_state(entry.action_label))
             self.doc.restore_from_bytes(entry.pdf_bytes)
             self.clear_selected_annotation()
+            self.clear_search()
             self.current_page = min(max(entry.page_index, 0), self.doc.page_count - 1)
             self._refresh_thumbnails()
             self._refresh_page()
@@ -624,6 +659,64 @@ class MainWindow(QMainWindow):
                 event.accept()
                 return
         super().keyPressEvent(event)
+
+    def focus_search_input(self) -> None:
+        self.search_input.setFocus()
+        self.search_input.selectAll()
+
+    def _update_search_overlay(self) -> None:
+        page_results = self.search_state.results_for_page(self.current_page)
+        rects = [result.rect for _, result in page_results]
+        active_index = None
+        for local_index, (global_index, _) in enumerate(page_results):
+            if global_index == self.search_state.current_index:
+                active_index = local_index
+                break
+        self.viewer.set_search_overlays_pdf(rects, active_index)
+        if self.search_state.has_results and self.search_state.current_index >= 0:
+            self.search_count_label.setText(f"{self.search_state.current_index + 1} / {len(self.search_state.results)}")
+        else:
+            self.search_count_label.setText("0 / 0")
+
+    def run_search(self) -> None:
+        if not self.doc.is_open:
+            return
+        query = self.search_input.text().strip()
+        self.search_state.clear()
+        if not query:
+            self._update_search_overlay()
+            return
+        try:
+            self.search_state.query = query
+            self.search_state.results = self.doc.search_text(query)
+            if not self.search_state.results:
+                self.statusBar().showMessage("No matches found")
+                self._update_search_overlay()
+                return
+            self.search_state.current_index = 0
+            self.current_page = self.search_state.current_result.page_index
+            self._refresh_page()
+        except PDFDocumentError as exc:
+            self._show_error("Search Error", str(exc))
+
+    def goto_next_result(self) -> None:
+        result = self.search_state.next()
+        if not result:
+            return
+        self.current_page = result.page_index
+        self._refresh_page()
+
+    def goto_previous_result(self) -> None:
+        result = self.search_state.previous()
+        if not result:
+            return
+        self.current_page = result.page_index
+        self._refresh_page()
+
+    def clear_search(self) -> None:
+        self.search_state.clear()
+        self.search_count_label.setText("0 / 0")
+        self.viewer.set_search_overlays_pdf([], None)
 
 
 def run() -> None:
