@@ -36,18 +36,28 @@ class PDFDocument:
     def is_dirty(self) -> bool:
         return self._dirty
 
-    def open(self, path: str) -> None:
+    def open(self, path: str, password: str | None = None) -> None:
         try:
             doc = fitz.open(path)
         except Exception as exc:  # noqa: BLE001
             raise PDFDocumentError(f"Failed to open PDF: {exc}") from exc
-        if doc.needs_pass:
+
+        try:
+            if doc.needs_pass:
+                if password is None:
+                    raise PDFDocumentError("PASSWORD_REQUIRED")
+                if not doc.authenticate(password):
+                    raise PDFDocumentError("Incorrect password. Please try again.")
+                if doc.needs_pass:
+                    raise PDFDocumentError("Failed to authenticate PDF with the provided password.")
+
+            self.close()
+            self.doc = doc
+            self.path = path
+            self._dirty = False
+        except Exception:
             doc.close()
-            raise PDFDocumentError("This PDF is encrypted or password protected.")
-        self.close()
-        self.doc = doc
-        self.path = path
-        self._dirty = False
+            raise
 
     def close(self) -> None:
         if self.doc:

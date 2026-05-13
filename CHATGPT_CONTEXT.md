@@ -34,6 +34,7 @@
 - Extract current page to a separate one-page PDF without modifying the open document.
 - Thumbnail sidebar for page previews and click-to-navigate page selection.
 - Text-layer PDF search across all pages with result navigation (previous/next), result count, and non-destructive search overlays on the current page.
+- Password-protected PDFs can be opened with a user-entered password prompt.
 
 ## Known Limitations
 
@@ -41,7 +42,7 @@
 - No OCR functionality.
 - Thumbnail sidebar supports navigation only (no drag-and-drop page reordering yet).
 - Undo/redo uses in-memory PDF snapshots; very large PDFs may use more memory.
-- Password-protected files are blocked instead of prompting for password.
+- PDF permissions/security restrictions are respected; PDF Assist does not bypass passwords or crack encrypted files.
 - Same-path Save As overwrite is currently restricted for safety until incremental-save handling is added safely.
 
 ## Safety Rules

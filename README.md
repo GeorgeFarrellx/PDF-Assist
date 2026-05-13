@@ -26,6 +26,7 @@ PDF Assist is a desktop PDF editor MVP built with PySide6 and PyMuPDF. It provid
 - Save As for writing edited PDFs to a new path
 - Text-layer search across all pages with Find/Previous/Next navigation, result count, and non-destructive on-page overlays (active match is emphasized)
 - Unsaved-change warning before opening a different PDF, closing a document, or exiting
+- Password-protected PDFs can be opened by entering the correct password in a masked prompt
 - User-friendly message-box error handling for common failures
 
 ## Installation
@@ -55,6 +56,7 @@ python main.py
 - Save As is intentionally safer: saving to the exact currently-open file path is restricted for now.
 - Same-path overwrite may remain limited until incremental-save handling is implemented safely.
 - Search is text-layer only. Scanned/image-only PDFs typically return no matches because OCR is not implemented.
+- PDF Assist does not bypass or crack PDF passwords, does not store entered passwords, and respects PDF security/permission restrictions exposed by PyMuPDF.
 - Undo/redo is an in-memory snapshot MVP; very large PDFs may consume more memory.
 - Undo/redo does not apply to navigation/zoom changes or extracted-page exports.
 
@@ -62,7 +64,6 @@ python main.py
 
 - Annotation selection/move/resize controls
 - Operation-specific (non-snapshot) undo/redo stack
-- Password prompt for encrypted PDFs
 - Drag-and-drop page reordering from thumbnails (future enhancement; not implemented yet and sidebar remains navigation-only)
 - Better text style controls (font family, color, alignment)
 - Export options and optimization presets
