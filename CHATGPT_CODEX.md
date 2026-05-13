@@ -1,6 +1,6 @@
 # Codex Notes
 
-- **Latest reference label:** PDF Assist Prompt 3
-- **Current change summary:** Added a resizable left-hand thumbnail sidebar with page previews/page numbers and click-to-navigate support, plus thumbnail refresh hooks on open/rotate/delete/insert/close and a read-only thumbnail renderer in document.py.
-- **Known limitations / follow-up:** Consider lazy thumbnail rendering/caching for very large PDFs; drag-and-drop page reordering is intentionally not implemented yet.
+- **Latest reference label:** PDF Assist Prompt 4
+- **Current change summary:** Added page organiser actions for Move Page Up/Down, Duplicate Page, and Extract Current Page, including safe document-layer methods, UI action wiring in the Page menu/toolbar, thumbnail/page refresh, selection preservation, and dirty-state handling (move/duplicate dirty; extract not dirty).
+- **Known limitations / follow-up:** Drag-and-drop page reordering is still intentionally out of scope; consider adding lazy thumbnail caching and optional multi-page extract in a future prompt.
 - **Reminder:** Future PRs should include their reference label in PR title or PR notes.

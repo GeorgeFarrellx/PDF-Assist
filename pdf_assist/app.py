@@ -94,6 +94,14 @@ class MainWindow(QMainWindow):
         self.delete_page_action.triggered.connect(self.delete_page)
         self.insert_pages_action = QAction("Insert Pages", self)
         self.insert_pages_action.triggered.connect(self.insert_pages)
+        self.move_page_up_action = QAction("Move Page Up", self)
+        self.move_page_up_action.triggered.connect(self.move_page_up)
+        self.move_page_down_action = QAction("Move Page Down", self)
+        self.move_page_down_action.triggered.connect(self.move_page_down)
+        self.duplicate_page_action = QAction("Duplicate Page", self)
+        self.duplicate_page_action.triggered.connect(self.duplicate_page)
+        self.extract_current_page_action = QAction("Extract Current Page", self)
+        self.extract_current_page_action.triggered.connect(self.extract_current_page)
 
         self.tool_view_action = QAction("Select/View", self)
         self.tool_view_action.triggered.connect(lambda: self.set_tool(ToolMode.VIEW))
@@ -106,14 +114,14 @@ class MainWindow(QMainWindow):
 
         for a in [self.open_action, self.save_action, self.close_action, self.exit_action]:
             file_menu.addAction(a)
-        for a in [self.prev_action, self.next_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action]:
+        for a in [self.prev_action, self.next_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.move_page_up_action, self.move_page_down_action, self.duplicate_page_action, self.extract_current_page_action]:
             page_menu.addAction(a)
         for a in [self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action]:
             view_menu.addAction(a)
         for a in [self.tool_view_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
             tool_menu.addAction(a)
 
-        for a in [self.open_action, self.save_action, self.prev_action, self.next_action, self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.tool_view_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
+        for a in [self.open_action, self.save_action, self.prev_action, self.next_action, self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.move_page_up_action, self.move_page_down_action, self.duplicate_page_action, self.extract_current_page_action, self.tool_view_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
             tb.addAction(a)
 
         nav = QWidget()
@@ -153,6 +161,7 @@ class MainWindow(QMainWindow):
             self.zoom_label.setText(f"{int(self.viewer.zoom_factor * 100)}%")
             self.statusBar().showMessage(f"Page {self.current_page + 1} of {self.doc.page_count}")
             self._update_current_thumbnail()
+            self._update_ui_state()
         except PDFDocumentError as exc:
             self._show_error("Render Error", str(exc))
 
@@ -185,6 +194,10 @@ class MainWindow(QMainWindow):
         enabled = self.doc.is_open
         for a in [self.save_action, self.close_action, self.next_action, self.prev_action, self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.tool_view_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
             a.setEnabled(enabled)
+        self.duplicate_page_action.setEnabled(enabled)
+        self.extract_current_page_action.setEnabled(enabled)
+        self.move_page_up_action.setEnabled(enabled and self.current_page > 0)
+        self.move_page_down_action.setEnabled(enabled and self.current_page < self.doc.page_count - 1)
 
     def open_pdf(self) -> None:
         if not self._confirm_discard_unsaved_changes():
@@ -311,6 +324,54 @@ class MainWindow(QMainWindow):
             self._refresh_page()
         except PDFDocumentError as exc:
             self._show_error("Page Operation Error", str(exc))
+
+    def move_page_up(self) -> None:
+        if self.current_page <= 0:
+            self.statusBar().showMessage("Current page is already the first page.")
+            self._update_ui_state()
+            return
+        try:
+            target_index = self.current_page - 1
+            self.doc.move_page(self.current_page, target_index)
+            self.current_page = target_index
+            self._refresh_thumbnails()
+            self._refresh_page()
+        except PDFDocumentError as exc:
+            self._show_error("Page Operation Error", str(exc))
+
+    def move_page_down(self) -> None:
+        if self.current_page >= self.doc.page_count - 1:
+            self.statusBar().showMessage("Current page is already the last page.")
+            self._update_ui_state()
+            return
+        try:
+            target_index = self.current_page + 1
+            self.doc.move_page(self.current_page, target_index)
+            self.current_page = target_index
+            self._refresh_thumbnails()
+            self._refresh_page()
+        except PDFDocumentError as exc:
+            self._show_error("Page Operation Error", str(exc))
+
+    def duplicate_page(self) -> None:
+        try:
+            self.current_page = self.doc.duplicate_page(self.current_page)
+            self._refresh_thumbnails()
+            self._refresh_page()
+        except PDFDocumentError as exc:
+            self._show_error("Page Operation Error", str(exc))
+
+    def extract_current_page(self) -> None:
+        if not self.doc.is_open:
+            return
+        output_path, _ = QFileDialog.getSaveFileName(self, "Extract Current Page", "", "PDF Files (*.pdf)")
+        if not output_path:
+            return
+        try:
+            self.doc.extract_page(self.current_page, output_path)
+            self.statusBar().showMessage(f"Extracted current page to {output_path}")
+        except PDFDocumentError as exc:
+            self._show_error("Extract Page Error", str(exc))
 
     def set_tool(self, mode: ToolMode) -> None:
         self.viewer.set_tool_mode(mode)

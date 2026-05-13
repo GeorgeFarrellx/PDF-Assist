@@ -137,6 +137,51 @@ class PDFDocument:
         finally:
             src.close()
 
+
+    def _validate_page_index(self, page_index: int) -> None:
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        if page_index < 0 or page_index >= self.doc.page_count:
+            raise PDFDocumentError(f"Page index out of range: {page_index + 1}.")
+
+    def move_page(self, page_index: int, target_index: int) -> None:
+        self._validate_page_index(page_index)
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        if target_index < 0 or target_index >= self.doc.page_count:
+            raise PDFDocumentError(f"Target page index out of range: {target_index + 1}.")
+        if page_index == target_index:
+            return
+        try:
+            self.doc.move_page(page_index, target_index)
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to move page: {exc}") from exc
+        self._dirty = True
+
+    def duplicate_page(self, page_index: int) -> int:
+        self._validate_page_index(page_index)
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        try:
+            self.doc.fullcopy_page(page_index, page_index)
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to duplicate page: {exc}") from exc
+        self._dirty = True
+        return page_index + 1
+
+    def extract_page(self, page_index: int, output_path: str) -> None:
+        self._validate_page_index(page_index)
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        out_doc = fitz.open()
+        try:
+            out_doc.insert_pdf(self.doc, from_page=page_index, to_page=page_index)
+            out_doc.save(output_path)
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to extract current page: {exc}") from exc
+        finally:
+            out_doc.close()
+
     def add_text(self, page_index: int, x: float, y: float, text: str, font_size: float = 14) -> None:
         if not self.doc:
             raise PDFDocumentError("No document loaded.")

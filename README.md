@@ -11,6 +11,9 @@ PDF Assist is a desktop PDF editor MVP built with PySide6 and PyMuPDF. It provid
   - Rotate current page clockwise / anticlockwise
   - Delete current page (with confirmation)
   - Insert pages from another PDF at current position or append to end
+  - Move current page up or down by one position
+  - Duplicate current page (inserted directly after the source page)
+  - Extract current page to a separate one-page PDF
 - Basic tools:
   - Select / view mode
   - Add text box mode (click to place text)
@@ -49,6 +52,6 @@ python main.py
 - Annotation selection/move/resize controls
 - Undo/redo stack
 - Password prompt for encrypted PDFs
-- Drag-and-drop page reordering from thumbnails (not implemented yet; sidebar is navigation-only today)
+- Drag-and-drop page reordering from thumbnails (future enhancement; not implemented yet and sidebar remains navigation-only)
 - Better text style controls (font family, color, alignment)
 - Export options and optimization presets

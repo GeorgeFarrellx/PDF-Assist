@@ -24,9 +24,10 @@
 - Open and render PDF files.
 - Navigate pages (next/previous/go to page).
 - Zoom in/out and fit width/page.
-- Rotate, delete, and insert pages.
+- Rotate, delete, insert, move up/down, and duplicate pages.
 - Add text, highlight rectangles, and freehand drawing annotations.
 - Save edited output with Save As.
+- Extract current page to a separate one-page PDF without modifying the open document.
 - Thumbnail sidebar for page previews and click-to-navigate page selection.
 
 ## Known Limitations
