@@ -1,6 +1,6 @@
 # Codex Notes
 
-- **Latest reference label:** PDF Assist Prompt 4
-- **Current change summary:** Added page organiser actions for Move Page Up/Down, Duplicate Page, and Extract Current Page, including safe document-layer methods, UI action wiring in the Page menu/toolbar, thumbnail/page refresh, selection preservation, and dirty-state handling (move/duplicate dirty; extract not dirty).
-- **Known limitations / follow-up:** Drag-and-drop page reordering is still intentionally out of scope; consider adding lazy thumbnail caching and optional multi-page extract in a future prompt.
+- **Latest reference label:** PDF Assist Prompt 5
+- **Current change summary:** Added conservative snapshot-based undo/redo for destructive page operations and annotation edits. Introduced an Edit menu with Undo/Redo actions (toolbar + shortcuts), in-memory PDF history stacks, safe document byte snapshot/restore methods, and undo/redo UI enablement tied to stack availability.
+- **Known limitations / follow-up:** Snapshot history keeps whole-document bytes in memory and can grow costly for very large PDFs; consider operation-specific undo commands in a future prompt. Drag-and-drop page reordering and direct editing of existing PDF text remain out of scope.
 - **Reminder:** Future PRs should include their reference label in PR title or PR notes.

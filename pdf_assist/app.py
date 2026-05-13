@@ -4,6 +4,7 @@ import sys
 
 import fitz
 from PySide6.QtGui import QAction
+from PySide6.QtGui import QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from .document import PDFDocument, PDFDocumentError
+from .history import HistoryEntry, PDFHistory
 from .thumbnails import ThumbnailSidebar
 from .tools import ToolMode
 from .viewer import PDFViewer
@@ -35,6 +37,7 @@ class MainWindow(QMainWindow):
         self.viewer = PDFViewer()
         self.thumbnail_sidebar = ThumbnailSidebar()
         self.current_page = 0
+        self.history = PDFHistory(max_depth=20)
 
         self.page_edit = QLineEdit("1")
         self.page_total_label = QLabel("/ 0")
@@ -57,6 +60,7 @@ class MainWindow(QMainWindow):
 
         menu = self.menuBar()
         file_menu = menu.addMenu("File")
+        edit_menu = menu.addMenu("Edit")
         page_menu = menu.addMenu("Page")
         view_menu = menu.addMenu("View")
         tool_menu = menu.addMenu("Tools")
@@ -102,6 +106,13 @@ class MainWindow(QMainWindow):
         self.duplicate_page_action.triggered.connect(self.duplicate_page)
         self.extract_current_page_action = QAction("Extract Current Page", self)
         self.extract_current_page_action.triggered.connect(self.extract_current_page)
+        self.undo_action = QAction("Undo", self)
+        self.undo_action.setShortcut(QKeySequence.Undo)
+        self.undo_action.triggered.connect(self.undo)
+        self.redo_action = QAction("Redo", self)
+        self.redo_action.setShortcut(QKeySequence.Redo)
+        self.redo_action.setShortcuts([QKeySequence.Redo, QKeySequence("Ctrl+Shift+Z")])
+        self.redo_action.triggered.connect(self.redo)
 
         self.tool_view_action = QAction("Select/View", self)
         self.tool_view_action.triggered.connect(lambda: self.set_tool(ToolMode.VIEW))
@@ -114,6 +125,8 @@ class MainWindow(QMainWindow):
 
         for a in [self.open_action, self.save_action, self.close_action, self.exit_action]:
             file_menu.addAction(a)
+        for a in [self.undo_action, self.redo_action]:
+            edit_menu.addAction(a)
         for a in [self.prev_action, self.next_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.move_page_up_action, self.move_page_down_action, self.duplicate_page_action, self.extract_current_page_action]:
             page_menu.addAction(a)
         for a in [self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action]:
@@ -121,7 +134,7 @@ class MainWindow(QMainWindow):
         for a in [self.tool_view_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
             tool_menu.addAction(a)
 
-        for a in [self.open_action, self.save_action, self.prev_action, self.next_action, self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.move_page_up_action, self.move_page_down_action, self.duplicate_page_action, self.extract_current_page_action, self.tool_view_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
+        for a in [self.open_action, self.save_action, self.undo_action, self.redo_action, self.prev_action, self.next_action, self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.move_page_up_action, self.move_page_down_action, self.duplicate_page_action, self.extract_current_page_action, self.tool_view_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
             tb.addAction(a)
 
         nav = QWidget()
@@ -198,6 +211,21 @@ class MainWindow(QMainWindow):
         self.extract_current_page_action.setEnabled(enabled)
         self.move_page_up_action.setEnabled(enabled and self.current_page > 0)
         self.move_page_down_action.setEnabled(enabled and self.current_page < self.doc.page_count - 1)
+        self.undo_action.setEnabled(enabled and self.history.can_undo)
+        self.redo_action.setEnabled(enabled and self.history.can_redo)
+
+    def _snapshot_state(self, action_label: str) -> HistoryEntry:
+        return HistoryEntry(pdf_bytes=self.doc.to_bytes(), page_index=self.current_page, action_label=action_label)
+
+    def _record_before_edit(self, action_label: str) -> bool:
+        try:
+            self.history.push_undo(self._snapshot_state(action_label))
+            self.history.clear_redo()
+            self._update_ui_state()
+            return True
+        except PDFDocumentError as exc:
+            self._show_error("History Error", str(exc))
+            return False
 
     def open_pdf(self) -> None:
         if not self._confirm_discard_unsaved_changes():
@@ -211,6 +239,7 @@ class MainWindow(QMainWindow):
             self._show_error("Open Error", str(exc))
             return
         self.current_page = 0
+        self.history.clear()
         self.viewer.zoom_factor = 1.0
         self._update_ui_state()
         self._refresh_thumbnails()
@@ -232,6 +261,7 @@ class MainWindow(QMainWindow):
         if not self._confirm_discard_unsaved_changes():
             return
         self.doc.close()
+        self.history.clear()
         self.current_page = 0
         self.viewer.canvas.pixmap = None
         self.viewer.canvas.update()
@@ -293,6 +323,8 @@ class MainWindow(QMainWindow):
         return result == QMessageBox.Yes
 
     def rotate_page(self, degrees: int) -> None:
+        if not self._record_before_edit("Rotate Page"):
+            return
         try:
             self.doc.rotate_page(self.current_page, degrees)
             self._refresh_thumbnails()
@@ -305,6 +337,8 @@ class MainWindow(QMainWindow):
         if confirm != QMessageBox.Yes:
             return
         try:
+            if not self._record_before_edit("Delete Page"):
+                return
             self.doc.delete_page(self.current_page)
             self.current_page = min(self.current_page, self.doc.page_count - 1)
             self._refresh_thumbnails()
@@ -319,6 +353,8 @@ class MainWindow(QMainWindow):
         choice = QMessageBox.question(self, "Insert Position", "Insert at current page? (No = append to end)", QMessageBox.Yes | QMessageBox.No)
         at_index = self.current_page if choice == QMessageBox.Yes else None
         try:
+            if not self._record_before_edit("Insert Pages"):
+                return
             self.doc.insert_pdf(source_path, at_index=at_index)
             self._refresh_thumbnails()
             self._refresh_page()
@@ -332,6 +368,8 @@ class MainWindow(QMainWindow):
             return
         try:
             target_index = self.current_page - 1
+            if not self._record_before_edit("Move Page Up"):
+                return
             self.doc.move_page(self.current_page, target_index)
             self.current_page = target_index
             self._refresh_thumbnails()
@@ -346,6 +384,8 @@ class MainWindow(QMainWindow):
             return
         try:
             target_index = self.current_page + 1
+            if not self._record_before_edit("Move Page Down"):
+                return
             self.doc.move_page(self.current_page, target_index)
             self.current_page = target_index
             self._refresh_thumbnails()
@@ -355,6 +395,8 @@ class MainWindow(QMainWindow):
 
     def duplicate_page(self) -> None:
         try:
+            if not self._record_before_edit("Duplicate Page"):
+                return
             self.current_page = self.doc.duplicate_page(self.current_page)
             self._refresh_thumbnails()
             self._refresh_page()
@@ -383,6 +425,8 @@ class MainWindow(QMainWindow):
             return
         x, y = self.viewer.widget_to_pdf(point)
         try:
+            if not self._record_before_edit("Add Text"):
+                return
             self.doc.add_text(self.current_page, x, y, text.strip())
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -391,6 +435,8 @@ class MainWindow(QMainWindow):
     def _on_highlight(self, rect) -> None:
         x1, y1, x2, y2 = self.viewer.rect_to_pdf(rect)
         try:
+            if not self._record_before_edit("Highlight"):
+                return
             self.doc.add_highlight_rect(self.current_page, fitz.Rect(x1, y1, x2, y2))
             self._refresh_page()
         except PDFDocumentError as exc:
@@ -398,11 +444,53 @@ class MainWindow(QMainWindow):
 
     def _on_freehand(self, points) -> None:
         pdf_points = [self.viewer.widget_to_pdf(p) for p in points]
+        if len(pdf_points) < 2:
+            return
         try:
+            if not self._record_before_edit("Freehand"):
+                return
             self.doc.add_freehand(self.current_page, pdf_points)
             self._refresh_page()
         except PDFDocumentError as exc:
             self._show_error("Annotation Error", str(exc))
+
+    def undo(self) -> None:
+        if not self.doc.is_open or not self.history.can_undo:
+            self.statusBar().showMessage("Nothing to undo.")
+            self._update_ui_state()
+            return
+        entry = self.history.pop_undo()
+        if entry is None:
+            return
+        try:
+            self.history.push_redo(self._snapshot_state(entry.action_label))
+            self.doc.restore_from_bytes(entry.pdf_bytes)
+            self.current_page = min(max(entry.page_index, 0), self.doc.page_count - 1)
+            self._refresh_thumbnails()
+            self._refresh_page()
+            self.statusBar().showMessage(f"Undid: {entry.action_label}")
+        except PDFDocumentError as exc:
+            self._show_error("Undo Error", str(exc))
+        self._update_ui_state()
+
+    def redo(self) -> None:
+        if not self.doc.is_open or not self.history.can_redo:
+            self.statusBar().showMessage("Nothing to redo.")
+            self._update_ui_state()
+            return
+        entry = self.history.pop_redo()
+        if entry is None:
+            return
+        try:
+            self.history.push_undo(self._snapshot_state(entry.action_label))
+            self.doc.restore_from_bytes(entry.pdf_bytes)
+            self.current_page = min(max(entry.page_index, 0), self.doc.page_count - 1)
+            self._refresh_thumbnails()
+            self._refresh_page()
+            self.statusBar().showMessage(f"Redid: {entry.action_label}")
+        except PDFDocumentError as exc:
+            self._show_error("Redo Error", str(exc))
+        self._update_ui_state()
 
     def closeEvent(self, event) -> None:  # noqa: N802
         if self._confirm_discard_unsaved_changes():

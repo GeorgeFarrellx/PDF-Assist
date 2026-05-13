@@ -55,6 +55,28 @@ class PDFDocument:
         self.path = None
         self._dirty = False
 
+    def to_bytes(self) -> bytes:
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        try:
+            return self.doc.tobytes()
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to snapshot PDF: {exc}") from exc
+
+    def restore_from_bytes(self, data: bytes) -> None:
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        try:
+            restored = fitz.open(stream=data, filetype="pdf")
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to restore PDF snapshot: {exc}") from exc
+        if restored.needs_pass:
+            restored.close()
+            raise PDFDocumentError("Restored PDF snapshot is encrypted or password protected.")
+        self.doc.close()
+        self.doc = restored
+        self._dirty = True
+
     def save_as(self, path: str) -> None:
         if not self.doc:
             raise PDFDocumentError("No document loaded.")
