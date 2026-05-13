@@ -32,6 +32,7 @@
 - Save edited output with Save As.
 - Extract current page to a separate one-page PDF without modifying the open document.
 - Thumbnail sidebar for page previews and click-to-navigate page selection.
+- Text-layer PDF search across all pages with result navigation (previous/next), result count, and non-destructive search overlays on the current page.
 
 ## Known Limitations
 

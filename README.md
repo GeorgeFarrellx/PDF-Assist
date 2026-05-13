@@ -24,6 +24,7 @@ PDF Assist is a desktop PDF editor MVP built with PySide6 and PyMuPDF. It provid
 - Arrow-key nudging for selected annotations (2 PDF points per arrow key, 10 PDF points with Shift+Arrow)
 - Undo/redo for page operations and annotation edits (Rotate, Delete, Insert, Move Up/Down, Duplicate, Add Text, Highlight, Freehand)
 - Save As for writing edited PDFs to a new path
+- Text-layer search across all pages with Find/Previous/Next navigation, result count, and non-destructive on-page overlays (active match is emphasized)
 - Unsaved-change warning before opening a different PDF, closing a document, or exiting
 - User-friendly message-box error handling for common failures
 
@@ -53,6 +54,7 @@ python main.py
 - Some third-party annotation types may not support movement safely.
 - Save As is intentionally safer: saving to the exact currently-open file path is restricted for now.
 - Same-path overwrite may remain limited until incremental-save handling is implemented safely.
+- Search is text-layer only. Scanned/image-only PDFs typically return no matches because OCR is not implemented.
 - Undo/redo is an in-memory snapshot MVP; very large PDFs may consume more memory.
 - Undo/redo does not apply to navigation/zoom changes or extracted-page exports.
 

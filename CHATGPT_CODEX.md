@@ -1,6 +1,6 @@
 # Codex Notes
 
-- **Latest reference label:** PDF Assist Prompt 7
-- **Current change summary:** Added MVP selected-annotation movement: drag-to-move preview overlay in Select Annotation mode, commit move on release using PDF-coordinate deltas, and arrow/Shift+arrow nudging for selected annotations. Added safe document move helper with page/xref validation and type-aware movement logic that raises clear errors when movement is unsafe.
-- **Known limitations / follow-up:** Annotation hit-testing still relies on annotation rectangles and can be harder with overlaps. Annotation resizing is still not implemented. Some third-party annotation types may not support safe movement updates. Snapshot history memory trade-offs still apply for large PDFs.
+- **Latest reference label:** PDF Assist Prompt 8
+- **Current change summary:** Added read-only text-layer PDF search: Find/Ctrl+F UI, previous/next wrapped navigation, result counts, and non-destructive search overlays that emphasize the active match on the current page. Search state is cleared on document/page-structure changes and undo/redo to keep state safe and predictable.
+- **Known limitations / follow-up:** Search is text-layer only (no OCR for scanned/image PDFs). Case/advanced search options (match case, whole word) are not yet implemented. Annotation hit-testing still relies on annotation rectangles and can be harder with overlaps. Snapshot history memory trade-offs still apply for large PDFs.
 - **Reminder:** Future PRs should include their reference label in PR title or PR notes.

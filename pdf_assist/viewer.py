@@ -23,6 +23,8 @@ class PageCanvas(QWidget):
         self.on_highlight: Callable[[QRect], None] | None = None
         self.on_freehand: Callable[[list[QPoint]], None] | None = None
         self.selected_annotation_rect: QRect | None = None
+        self.search_result_rects: list[QRect] = []
+        self.active_search_result_index: int | None = None
         self.on_selected_annotation_move_started: Callable[[], None] | None = None
         self.on_selected_annotation_move_finished: Callable[[int, int], None] | None = None
         self._selected_drag_active = False
@@ -49,6 +51,15 @@ class PageCanvas(QWidget):
         if self.selected_annotation_rect:
             painter.setPen(QPen(Qt.blue, 2, Qt.SolidLine))
             painter.drawRect(self.selected_annotation_rect)
+        for index, rect in enumerate(self.search_result_rects):
+            is_active = self.active_search_result_index == index
+            if is_active:
+                painter.setPen(QPen(Qt.darkRed, 3, Qt.SolidLine))
+                painter.fillRect(rect, Qt.yellow)
+            else:
+                painter.setPen(QPen(Qt.darkYellow, 1, Qt.SolidLine))
+                painter.fillRect(rect, Qt.yellow)
+            painter.drawRect(rect)
         super().paintEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802
@@ -149,6 +160,23 @@ class PDFViewer(QScrollArea):
 
     def set_page_size(self, width: float, height: float) -> None:
         self.page_size = (width, height)
+
+    def set_search_overlays_pdf(
+        self,
+        rects: list[tuple[float, float, float, float]],
+        active_rect_index: int | None = None,
+    ) -> None:
+        self.canvas.search_result_rects = [
+            QRect(
+                int(round(x1 * self.zoom_factor)),
+                int(round(y1 * self.zoom_factor)),
+                int(round((x2 - x1) * self.zoom_factor)),
+                int(round((y2 - y1) * self.zoom_factor)),
+            ).normalized()
+            for x1, y1, x2, y2 in rects
+        ]
+        self.canvas.active_search_result_index = active_rect_index
+        self.canvas.update()
 
     def zoom_in(self) -> float:
         self.fit_mode = None
