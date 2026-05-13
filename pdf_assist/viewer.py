@@ -23,6 +23,11 @@ class PageCanvas(QWidget):
         self.on_highlight: Callable[[QRect], None] | None = None
         self.on_freehand: Callable[[list[QPoint]], None] | None = None
         self.selected_annotation_rect: QRect | None = None
+        self.on_selected_annotation_move_started: Callable[[], None] | None = None
+        self.on_selected_annotation_move_finished: Callable[[int, int], None] | None = None
+        self._selected_drag_active = False
+        self._selected_drag_start: QPoint | None = None
+        self._selected_drag_origin: QRect | None = None
 
     def set_pixmap(self, pixmap: QPixmap) -> None:
         self.pixmap = pixmap
@@ -56,6 +61,12 @@ class PageCanvas(QWidget):
         if self.tool_mode == ToolMode.SELECT_ANNOTATION and event.button() == Qt.LeftButton:
             if self.on_select_annotation:
                 self.on_select_annotation(event.position().toPoint())
+            if self.selected_annotation_rect and self.selected_annotation_rect.contains(event.position().toPoint()):
+                self._selected_drag_active = True
+                self._selected_drag_start = event.position().toPoint()
+                self._selected_drag_origin = QRect(self.selected_annotation_rect)
+                if self.on_selected_annotation_move_started:
+                    self.on_selected_annotation_move_started()
             return
         if self.tool_mode in (ToolMode.HIGHLIGHT, ToolMode.FREEHAND) and event.button() == Qt.LeftButton:
             self.drag_start = event.position().toPoint()
@@ -64,6 +75,12 @@ class PageCanvas(QWidget):
             self.update()
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if self._selected_drag_active and self._selected_drag_start and self._selected_drag_origin:
+            current_point = event.position().toPoint()
+            delta = current_point - self._selected_drag_start
+            self.selected_annotation_rect = self._selected_drag_origin.translated(delta)
+            self.update()
+            return
         if self.drag_start is None:
             return
         p = event.position().toPoint()
@@ -73,6 +90,15 @@ class PageCanvas(QWidget):
         self.update()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:  # noqa: N802
+        if self._selected_drag_active:
+            if self.on_selected_annotation_move_finished and self._selected_drag_start:
+                end_point = event.position().toPoint()
+                delta = end_point - self._selected_drag_start
+                self.on_selected_annotation_move_finished(delta.x(), delta.y())
+            self._selected_drag_active = False
+            self._selected_drag_start = None
+            self._selected_drag_origin = None
+            return
         if self.drag_start is None:
             return
         if self.tool_mode == ToolMode.HIGHLIGHT and self.on_highlight:

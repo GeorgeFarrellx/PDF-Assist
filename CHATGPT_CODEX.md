@@ -1,6 +1,6 @@
 # Codex Notes
 
-- **Latest reference label:** PDF Assist Prompt 6
-- **Current change summary:** Added MVP annotation selection/deletion workflow: new Select Annotation tool mode, selected-annotation overlay, and Delete Selected Annotation action with explicit confirmation. Selection is page-scoped and cleared on navigation/open-close/structural changes/undo-redo. Added safe document helpers to find, inspect, and delete only one selected annotation by xref with clear errors.
-- **Known limitations / follow-up:** Annotation hit-testing currently relies on annotation rectangles and may require precision for overlapping/tight annotations. Moving/resizing annotations is still not implemented. Snapshot history memory trade-offs still apply for large PDFs.
+- **Latest reference label:** PDF Assist Prompt 7
+- **Current change summary:** Added MVP selected-annotation movement: drag-to-move preview overlay in Select Annotation mode, commit move on release using PDF-coordinate deltas, and arrow/Shift+arrow nudging for selected annotations. Added safe document move helper with page/xref validation and type-aware movement logic that raises clear errors when movement is unsafe.
+- **Known limitations / follow-up:** Annotation hit-testing still relies on annotation rectangles and can be harder with overlaps. Annotation resizing is still not implemented. Some third-party annotation types may not support safe movement updates. Snapshot history memory trade-offs still apply for large PDFs.
 - **Reminder:** Future PRs should include their reference label in PR title or PR notes.

@@ -27,6 +27,7 @@
 - Rotate, delete, insert, move up/down, and duplicate pages.
 - Add text, highlight rectangles, and freehand drawing annotations.
 - Select existing annotations and delete only the selected annotation with confirmation.
+- Move selected annotations by dragging the selection overlay or by arrow-key nudging.
 - Undo/redo for page operations and annotation edits.
 - Save edited output with Save As.
 - Extract current page to a separate one-page PDF without modifying the open document.
