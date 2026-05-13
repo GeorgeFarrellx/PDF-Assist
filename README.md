@@ -17,6 +17,7 @@ PDF Assist is a desktop PDF editor MVP built with PySide6 and PyMuPDF. It provid
   - Highlight mode (drag rectangle)
   - Freehand drawing mode (drag to draw)
 - Save As for writing edited PDFs to a new path
+- Unsaved-change warning before opening a different PDF, closing a document, or exiting
 - User-friendly message-box error handling for common failures
 
 ## Installation
@@ -40,6 +41,8 @@ python main.py
 - Complex layout-aware editing of existing content is not implemented.
 - Full direct editing of existing PDF text like Adobe Acrobat is complex and will be added gradually. This first version supports viewing, page operations, text insertion, highlighting, and drawing.
 - Annotation placement is tied to current render scale and page rotation behavior from PyMuPDF.
+- Save As is intentionally safer: saving to the exact currently-open file path is restricted for now.
+- Same-path overwrite may remain limited until incremental-save handling is implemented safely.
 
 ## Roadmap Ideas
 

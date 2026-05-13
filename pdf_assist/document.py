@@ -21,6 +21,7 @@ class PDFDocument:
     def __init__(self) -> None:
         self.doc: fitz.Document | None = None
         self.path: str | None = None
+        self._dirty = False
 
     @property
     def is_open(self) -> bool:
@@ -29,6 +30,10 @@ class PDFDocument:
     @property
     def page_count(self) -> int:
         return self.doc.page_count if self.doc else 0
+
+    @property
+    def is_dirty(self) -> bool:
+        return self._dirty
 
     def open(self, path: str) -> None:
         try:
@@ -41,23 +46,35 @@ class PDFDocument:
         self.close()
         self.doc = doc
         self.path = path
+        self._dirty = False
 
     def close(self) -> None:
         if self.doc:
             self.doc.close()
         self.doc = None
         self.path = None
+        self._dirty = False
 
     def save_as(self, path: str) -> None:
         if not self.doc:
             raise PDFDocumentError("No document loaded.")
+        if self.path and path == self.path:
+            raise PDFDocumentError(
+                "Saving to the currently opened file path is not supported safely yet. "
+                "Please choose a different output file path."
+            )
         try:
             self.doc.save(path)
-        except Exception:
-            try:
-                self.doc.save(path, incremental=False, garbage=4, deflate=True)
-            except Exception as exc:  # noqa: BLE001
-                raise PDFDocumentError(f"Failed to save PDF: {exc}") from exc
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to save PDF: {exc}") from exc
+        self._dirty = False
+
+    def page_dimensions(self, page_index: int) -> tuple[float, float]:
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        page = self.doc.load_page(page_index)
+        rect = page.rect
+        return rect.width, rect.height
 
     def render_page(self, page_index: int, zoom: float = 1.0, rotation: int = 0) -> RenderResult:
         if not self.doc:
@@ -72,6 +89,7 @@ class PDFDocument:
             raise PDFDocumentError("No document loaded.")
         page = self.doc.load_page(page_index)
         page.set_rotation((page.rotation + degrees) % 360)
+        self._dirty = True
 
     def delete_page(self, page_index: int) -> None:
         if not self.doc:
@@ -79,6 +97,7 @@ class PDFDocument:
         if self.doc.page_count <= 1:
             raise PDFDocumentError("Cannot delete the only page in the document.")
         self.doc.delete_page(page_index)
+        self._dirty = True
 
     def insert_pdf(self, source_path: str, at_index: int | None = None) -> None:
         if not self.doc:
@@ -93,6 +112,7 @@ class PDFDocument:
         try:
             start_at = self.doc.page_count if at_index is None else at_index
             self.doc.insert_pdf(src, start_at=start_at)
+            self._dirty = True
         except Exception as exc:  # noqa: BLE001
             raise PDFDocumentError(f"Failed to insert pages: {exc}") from exc
         finally:
@@ -103,6 +123,7 @@ class PDFDocument:
             raise PDFDocumentError("No document loaded.")
         page = self.doc.load_page(page_index)
         page.insert_text((x, y), text, fontsize=font_size, color=(0, 0, 0))
+        self._dirty = True
 
     def add_highlight_rect(self, page_index: int, rect: fitz.Rect) -> None:
         if not self.doc:
@@ -112,6 +133,7 @@ class PDFDocument:
         annot.set_colors(stroke=(1, 1, 0), fill=(1, 1, 0))
         annot.set_opacity(0.35)
         annot.update()
+        self._dirty = True
 
     def add_freehand(self, page_index: int, points: Iterable[tuple[float, float]]) -> None:
         if not self.doc:
@@ -124,3 +146,4 @@ class PDFDocument:
         annot.set_colors(stroke=(1, 0, 0))
         annot.set_border(width=2)
         annot.update()
+        self._dirty = True

@@ -127,6 +127,7 @@ class MainWindow(QMainWindow):
         self.viewer.canvas.on_add_text = self._on_add_text
         self.viewer.canvas.on_highlight = self._on_highlight
         self.viewer.canvas.on_freehand = self._on_freehand
+        self.viewer.on_fit_zoom_changed = self._refresh_page
 
     def _show_error(self, title: str, message: str) -> None:
         QMessageBox.critical(self, title, message)
@@ -135,6 +136,8 @@ class MainWindow(QMainWindow):
         if not self.doc.is_open:
             return
         try:
+            page_width, page_height = self.doc.page_dimensions(self.current_page)
+            self.viewer.set_page_size(page_width, page_height)
             rr = self.doc.render_page(self.current_page, zoom=self.viewer.zoom_factor)
             self.viewer.show_page(rr.image, rr.width, rr.height)
             self.page_total_label.setText(f"/ {self.doc.page_count}")
@@ -150,6 +153,8 @@ class MainWindow(QMainWindow):
             a.setEnabled(enabled)
 
     def open_pdf(self) -> None:
+        if not self._confirm_discard_unsaved_changes():
+            return
         path, _ = QFileDialog.getOpenFileName(self, "Open PDF", "", "PDF Files (*.pdf)")
         if not path:
             return
@@ -176,6 +181,8 @@ class MainWindow(QMainWindow):
             self._show_error("Save Error", str(exc))
 
     def close_pdf(self) -> None:
+        if not self._confirm_discard_unsaved_changes():
+            return
         self.doc.close()
         self.current_page = 0
         self.viewer.canvas.pixmap = None
@@ -224,6 +231,17 @@ class MainWindow(QMainWindow):
     def fit_page(self) -> None:
         self.viewer.fit_page()
         self._refresh_page()
+
+    def _confirm_discard_unsaved_changes(self) -> bool:
+        if not self.doc.is_open or not self.doc.is_dirty:
+            return True
+        result = QMessageBox.question(
+            self,
+            "Unsaved Changes",
+            "This PDF has unsaved changes. Do you want to continue without saving?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        return result == QMessageBox.Yes
 
     def rotate_page(self, degrees: int) -> None:
         try:
@@ -285,6 +303,12 @@ class MainWindow(QMainWindow):
             self._refresh_page()
         except PDFDocumentError as exc:
             self._show_error("Annotation Error", str(exc))
+
+    def closeEvent(self, event) -> None:  # noqa: N802
+        if self._confirm_discard_unsaved_changes():
+            event.accept()
+        else:
+            event.ignore()
 
 
 def run() -> None:
