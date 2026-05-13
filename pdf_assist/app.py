@@ -3,8 +3,9 @@ from __future__ import annotations
 import sys
 
 import fitz
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
-from PySide6.QtGui import QKeySequence
+from PySide6.QtGui import QKeyEvent, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -163,6 +164,7 @@ class MainWindow(QMainWindow):
         self.viewer.canvas.on_select_annotation = self.select_annotation_at_point
         self.viewer.canvas.on_highlight = self._on_highlight
         self.viewer.canvas.on_freehand = self._on_freehand
+        self.viewer.canvas.on_selected_annotation_move_finished = self._on_selected_annotation_move_finished
         self.viewer.on_fit_zoom_changed = self._refresh_page
         self.thumbnail_sidebar.set_page_selected_callback(self._on_thumbnail_selected)
 
@@ -469,10 +471,35 @@ class MainWindow(QMainWindow):
             self.selected_annotation_id = annotation_id
             self.selected_annotation_rect = self.doc.get_annotation_rect(self.current_page, annotation_id)
             self.update_selected_annotation_overlay()
-            self.statusBar().showMessage("Selected annotation")
+            self.statusBar().showMessage("Selected annotation — drag to move or press Delete Selected Annotation.")
             self._update_ui_state()
         except PDFDocumentError as exc:
             self._show_error("Annotation Error", str(exc))
+
+    def _move_selected_annotation_by_pdf_delta(self, dx: float, dy: float, action_label: str) -> None:
+        if self.selected_annotation_page != self.current_page or self.selected_annotation_id is None:
+            return
+        if abs(dx) < 1e-9 and abs(dy) < 1e-9:
+            self.update_selected_annotation_overlay()
+            return
+        try:
+            if not self._record_before_edit(action_label):
+                self.update_selected_annotation_overlay()
+                return
+            new_rect = self.doc.move_annotation(self.current_page, self.selected_annotation_id, dx, dy)
+            self.selected_annotation_rect = new_rect
+            self.update_selected_annotation_overlay()
+            self._refresh_page()
+            self.statusBar().showMessage("Selected annotation moved.")
+            self._update_ui_state()
+        except PDFDocumentError as exc:
+            self._show_error("Annotation Error", str(exc))
+            self.update_selected_annotation_overlay()
+
+    def _on_selected_annotation_move_finished(self, dx_pixels: int, dy_pixels: int) -> None:
+        dx = dx_pixels / self.viewer.zoom_factor
+        dy = dy_pixels / self.viewer.zoom_factor
+        self._move_selected_annotation_by_pdf_delta(dx, dy, "Move Selected Annotation")
 
     def delete_selected_annotation(self) -> None:
         if self.selected_annotation_page != self.current_page or self.selected_annotation_id is None:
@@ -570,6 +597,33 @@ class MainWindow(QMainWindow):
             event.accept()
         else:
             event.ignore()
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
+        if (
+            self.doc.is_open
+            and self.selected_annotation_page == self.current_page
+            and self.selected_annotation_id is not None
+            and self.page_edit is not None
+            and not self.page_edit.hasFocus()
+        ):
+            step = 10.0 if event.modifiers() & Qt.ShiftModifier else 2.0
+            if event.key() == Qt.Key_Left:
+                self._move_selected_annotation_by_pdf_delta(-step, 0.0, "Nudge Selected Annotation")
+                event.accept()
+                return
+            if event.key() == Qt.Key_Right:
+                self._move_selected_annotation_by_pdf_delta(step, 0.0, "Nudge Selected Annotation")
+                event.accept()
+                return
+            if event.key() == Qt.Key_Up:
+                self._move_selected_annotation_by_pdf_delta(0.0, -step, "Nudge Selected Annotation")
+                event.accept()
+                return
+            if event.key() == Qt.Key_Down:
+                self._move_selected_annotation_by_pdf_delta(0.0, step, "Nudge Selected Annotation")
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
 
 def run() -> None:

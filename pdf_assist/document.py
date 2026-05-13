@@ -265,6 +265,48 @@ class PDFDocument:
         except Exception as exc:  # noqa: BLE001
             raise PDFDocumentError(f"Failed to read annotation bounds: {exc}") from exc
 
+    def move_annotation(self, page_index: int, annotation_id: int, dx: float, dy: float) -> fitz.Rect:
+        self._validate_page_index(page_index)
+        if not self.doc:
+            raise PDFDocumentError("No document loaded.")
+        try:
+            page = self.doc.load_page(page_index)
+            for annot in page.annots() or []:
+                if annot.xref != annotation_id:
+                    continue
+                rect = annot.rect
+                new_rect = fitz.Rect(rect.x0 + dx, rect.y0 + dy, rect.x1 + dx, rect.y1 + dy)
+                if annot.type[0] == fitz.PDF_ANNOT_INK:
+                    vertices = list(annot.vertices or [])
+                    if not vertices:
+                        raise PDFDocumentError("Cannot move this ink annotation safely.")
+                    moved_vertices = [
+                        [fitz.Point(point.x + dx, point.y + dy) for point in stroke]
+                        for stroke in vertices
+                    ]
+                    annot.set_vertices(moved_vertices)
+                elif annot.type[0] in (
+                    fitz.PDF_ANNOT_HIGHLIGHT,
+                    fitz.PDF_ANNOT_UNDERLINE,
+                    fitz.PDF_ANNOT_STRIKE_OUT,
+                    fitz.PDF_ANNOT_SQUIGGLY,
+                ):
+                    quads = list(annot.vertices or [])
+                    if not quads:
+                        raise PDFDocumentError("Cannot move this text-markup annotation safely.")
+                    moved_quads = [fitz.Point(point.x + dx, point.y + dy) for point in quads]
+                    annot.set_vertices(moved_quads)
+                else:
+                    annot.set_rect(new_rect)
+                annot.update()
+                self._dirty = True
+                return annot.rect
+            raise PDFDocumentError("Selected annotation was not found on this page.")
+        except PDFDocumentError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to move annotation: {exc}") from exc
+
     def delete_annotation(self, page_index: int, annotation_id: int) -> None:
         self._validate_page_index(page_index)
         if not self.doc:
