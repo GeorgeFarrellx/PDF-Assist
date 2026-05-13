@@ -13,6 +13,7 @@
 - [main.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/main.py)
 - [pdf_assist/__init__.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/__init__.py)
 - [pdf_assist/app.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/app.py)
+- [pdf_assist/search.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/search.py)
 - [pdf_assist/document.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/document.py)
 - [pdf_assist/viewer.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/viewer.py)
 - [pdf_assist/thumbnails.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/thumbnails.py)
