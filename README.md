@@ -1,1 +1,51 @@
-# PDF-Editor
+# PDF Assist
+
+PDF Assist is a desktop PDF editor MVP built with PySide6 and PyMuPDF. It provides an Acrobat-style foundation for opening PDFs, viewing pages, navigating, zooming, rotating, applying simple annotations, and saving edited files.
+
+## MVP Features
+
+- Open PDF files and render pages in a central viewer
+- Page navigation: next, previous, and jump to page number
+- Zoom controls: zoom in, zoom out, fit width, fit page
+- Page operations:
+  - Rotate current page clockwise / anticlockwise
+  - Delete current page (with confirmation)
+  - Insert pages from another PDF at current position or append to end
+- Basic tools:
+  - Select / view mode
+  - Add text box mode (click to place text)
+  - Highlight mode (drag rectangle)
+  - Freehand drawing mode (drag to draw)
+- Save As for writing edited PDFs to a new path
+- User-friendly message-box error handling for common failures
+
+## Installation
+
+1. Ensure Python 3.10+ is installed.
+2. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Run
+
+```bash
+python main.py
+```
+
+## Known Limitations
+
+- This is an MVP and focuses on foundational editing workflows.
+- Complex layout-aware editing of existing content is not implemented.
+- Full direct editing of existing PDF text like Adobe Acrobat is complex and will be added gradually. This first version supports viewing, page operations, text insertion, highlighting, and drawing.
+- Annotation placement is tied to current render scale and page rotation behavior from PyMuPDF.
+
+## Roadmap Ideas
+
+- Annotation selection/move/resize controls
+- Undo/redo stack
+- Password prompt for encrypted PDFs
+- Multi-page thumbnails panel
+- Better text style controls (font family, color, alignment)
+- Export options and optimization presets
