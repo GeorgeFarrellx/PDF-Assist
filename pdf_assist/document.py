@@ -198,6 +198,20 @@ class PDFDocument:
         if page_index < 0 or page_index >= self.doc.page_count:
             raise PDFDocumentError(f"Page index out of range: {page_index + 1}.")
 
+
+    def reorder_page(self, source_index: int, target_index: int) -> int:
+        self._validate_page_index(source_index)
+        self._validate_page_index(target_index)
+        if source_index == target_index:
+            return source_index
+        try:
+            # PyMuPDF move_page keeps target_index aligned to final visible order for a single-page move.
+            self.doc.move_page(source_index, target_index)
+        except Exception as exc:  # noqa: BLE001
+            raise PDFDocumentError(f"Failed to reorder page: {exc}") from exc
+        self._dirty = True
+        return target_index
+
     def move_page(self, page_index: int, target_index: int) -> None:
         self._validate_page_index(page_index)
         if not self.doc:

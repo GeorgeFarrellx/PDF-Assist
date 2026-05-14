@@ -191,6 +191,7 @@ class MainWindow(QMainWindow):
         self.viewer.canvas.on_selected_annotation_move_finished = self._on_selected_annotation_move_finished
         self.viewer.on_fit_zoom_changed = self._refresh_page
         self.thumbnail_sidebar.set_page_selected_callback(self._on_thumbnail_selected)
+        self.thumbnail_sidebar.set_pages_reordered_callback(self.reorder_page_from_thumbnail)
 
     def _show_error(self, title: str, message: str) -> None:
         QMessageBox.critical(self, title, message)
@@ -459,6 +460,29 @@ class MainWindow(QMainWindow):
         except PDFDocumentError as exc:
             self._show_error("Page Operation Error", str(exc))
 
+    def reorder_page_from_thumbnail(self, source_index: int, target_index: int) -> None:
+        if not self.doc.is_open:
+            return
+        if source_index == target_index:
+            self._refresh_thumbnails()
+            self._update_ui_state()
+            return
+        try:
+            if not self._record_before_edit("Reorder Page"):
+                self._refresh_thumbnails()
+                return
+            new_index = self.doc.reorder_page(source_index, target_index)
+            self.current_page = new_index
+            self.clear_selected_annotation()
+            self.clear_search()
+            self._refresh_thumbnails()
+            self._refresh_page()
+            self.statusBar().showMessage(f"Moved page {source_index + 1} to position {new_index + 1}.")
+        except PDFDocumentError as exc:
+            self._show_error("Page Operation Error", str(exc))
+            self._refresh_thumbnails()
+            self._refresh_page()
+
     def move_page_up(self) -> None:
         if self.current_page <= 0:
             self.statusBar().showMessage("Current page is already the first page.")
@@ -468,8 +492,7 @@ class MainWindow(QMainWindow):
             target_index = self.current_page - 1
             if not self._record_before_edit("Move Page Up"):
                 return
-            self.doc.move_page(self.current_page, target_index)
-            self.current_page = target_index
+            self.current_page = self.doc.reorder_page(self.current_page, target_index)
             self.clear_selected_annotation()
             self.clear_search()
             self._refresh_thumbnails()
@@ -486,8 +509,7 @@ class MainWindow(QMainWindow):
             target_index = self.current_page + 1
             if not self._record_before_edit("Move Page Down"):
                 return
-            self.doc.move_page(self.current_page, target_index)
-            self.current_page = target_index
+            self.current_page = self.doc.reorder_page(self.current_page, target_index)
             self.clear_selected_annotation()
             self.clear_search()
             self._refresh_thumbnails()
