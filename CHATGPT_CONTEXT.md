@@ -32,7 +32,7 @@
 - Undo/redo for page operations and annotation edits.
 - Save edited output with Save As.
 - Extract current page to a separate one-page PDF without modifying the open document.
-- Thumbnail sidebar for page previews and click-to-navigate page selection.
+- Thumbnail sidebar for page previews, click-to-navigate page selection, and drag-and-drop page reordering.
 - Text-layer PDF search across all pages with result navigation (previous/next), result count, and non-destructive search overlays on the current page.
 - Password-protected PDFs can be opened with a user-entered password prompt.
 
@@ -40,7 +40,7 @@
 
 - MVP scope only; direct editing of existing PDF text is not implemented.
 - No OCR functionality.
-- Thumbnail sidebar supports navigation only (no drag-and-drop page reordering yet).
+- Thumbnail drag-and-drop reorder updates the document page order and uses the same undo/redo snapshot model as other page edits.
 - Undo/redo uses in-memory PDF snapshots; very large PDFs may use more memory.
 - PDF permissions/security restrictions are respected; PDF Assist does not bypass passwords or crack encrypted files.
 - Same-path Save As overwrite is currently restricted for safety until incremental-save handling is added safely.
