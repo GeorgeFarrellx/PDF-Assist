@@ -28,6 +28,7 @@ PDF Assist is a desktop PDF editor MVP built with PySide6 and PyMuPDF. It provid
 - Unsaved-change warning before opening a different PDF, closing a document, or exiting
 - Password-protected PDFs can be opened by entering the correct password in a masked prompt
 - User-friendly message-box error handling for common failures
+- Print Assist Builder (Tools → Print Assist Builder): build a combined print-ready PDF from mixed source files with reorder/remove/clear workflow, output selection, background preview generation, and save/print/open actions
 
 ## Installation
 
@@ -57,6 +58,11 @@ python main.py
 - Save As is intentionally safer: saving to the exact currently-open file path is restricted for now.
 - Same-path overwrite may remain limited until incremental-save handling is implemented safely.
 - Search is text-layer only. Scanned/image-only PDFs typically return no matches because OCR is not implemented.
+- Print Assist Builder supports input types: PDF, JPG/JPEG, PNG, BMP, TIF/TIFF, DOC/DOCX, XLS/XLSX/XLSM/XLSB, and MSG.
+- Print Assist Builder fits source PDF pages/images onto A4 portrait/landscape automatically, centered, with no cropping.
+- Word/Excel/MSG conversion requires Windows + pywin32 + Microsoft Office/Outlook, and conversion attempts will fail with a clear message when unavailable.
+- Print Preview PDF uses Windows/default PDF print handling where supported; non-Windows systems show a friendly unsupported message.
+- Print Assist Builder creates new output PDFs and does not modify source files.
 - PDF Assist does not bypass or crack PDF passwords, does not store entered passwords, and respects PDF security/permission restrictions exposed by PyMuPDF.
 - Undo/redo is an in-memory snapshot MVP; very large PDFs may consume more memory.
 - Undo/redo does not apply to navigation/zoom changes or extracted-page exports.
