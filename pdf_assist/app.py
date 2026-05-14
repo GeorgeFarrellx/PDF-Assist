@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QStatusBar,
     QToolBar,
     QSplitter,
+    QComboBox,
     QWidget,
 )
 
@@ -27,6 +28,7 @@ from .search import SearchState
 from .thumbnails import ThumbnailSidebar
 from .tools import ToolMode
 from .viewer import PDFViewer
+from .styles import ToolStyles
 
 
 class MainWindow(QMainWindow):
@@ -44,6 +46,7 @@ class MainWindow(QMainWindow):
         self.selected_annotation_id: int | None = None
         self.selected_annotation_rect: fitz.Rect | None = None
         self.search_state = SearchState()
+        self.tool_styles = ToolStyles()
 
         self.page_edit = QLineEdit("1")
         self.page_total_label = QLabel("/ 0")
@@ -180,8 +183,57 @@ class MainWindow(QMainWindow):
         for action in [self.find_button, self.search_prev_button, self.search_next_button, self.search_clear_button]:
             tb.addAction(action)
         nav_layout.addWidget(self.search_count_label)
+        colors = self._style_palette()
+        nav_layout.addSpacing(16)
+        nav_layout.addWidget(QLabel("Text Size:"))
+        self.text_size_combo = QComboBox()
+        for value in [8, 10, 12, 14, 16, 18, 24, 36]:
+            self.text_size_combo.addItem(str(value), float(value))
+        self.text_size_combo.setCurrentText("14")
+        self.text_size_combo.currentIndexChanged.connect(lambda _: setattr(self.tool_styles.text, "font_size", float(self.text_size_combo.currentData())))
+        nav_layout.addWidget(self.text_size_combo)
+        nav_layout.addWidget(QLabel("Text Color:"))
+        self.text_color_combo = QComboBox()
+        for name in ["Black", "Red", "Blue", "Green"]:
+            self.text_color_combo.addItem(name, colors[name])
+        self.text_color_combo.currentIndexChanged.connect(lambda _: setattr(self.tool_styles.text, "color", self._selected_color(self.text_color_combo)))
+        nav_layout.addWidget(self.text_color_combo)
+        nav_layout.addWidget(QLabel("Highlight:"))
+        self.highlight_color_combo = QComboBox()
+        for name in ["Yellow", "Green", "Blue", "Pink"]:
+            self.highlight_color_combo.addItem(name, colors[name])
+        self.highlight_color_combo.currentIndexChanged.connect(lambda _: setattr(self.tool_styles.highlight, "color", self._selected_color(self.highlight_color_combo)))
+        nav_layout.addWidget(self.highlight_color_combo)
+        nav_layout.addWidget(QLabel("Pen:"))
+        self.freehand_color_combo = QComboBox()
+        for name in ["Red", "Black", "Blue", "Green"]:
+            self.freehand_color_combo.addItem(name, colors[name])
+        self.freehand_color_combo.currentIndexChanged.connect(lambda _: setattr(self.tool_styles.freehand, "color", self._selected_color(self.freehand_color_combo)))
+        nav_layout.addWidget(self.freehand_color_combo)
+        nav_layout.addWidget(QLabel("Width:"))
+        self.freehand_width_combo = QComboBox()
+        for value in [1, 2, 4, 6, 8]:
+            self.freehand_width_combo.addItem(str(value), float(value))
+        self.freehand_width_combo.setCurrentText("2")
+        self.freehand_width_combo.currentIndexChanged.connect(lambda _: setattr(self.tool_styles.freehand, "width", float(self.freehand_width_combo.currentData())))
+        nav_layout.addWidget(self.freehand_width_combo)
         nav_layout.addStretch()
         tb.addWidget(nav)
+
+
+
+    def _style_palette(self) -> dict[str, tuple[float, float, float]]:
+        return {
+            "Black": (0.0, 0.0, 0.0),
+            "Red": (1.0, 0.0, 0.0),
+            "Blue": (0.0, 0.0, 1.0),
+            "Green": (0.0, 0.6, 0.0),
+            "Yellow": (1.0, 1.0, 0.0),
+            "Pink": (1.0, 0.4, 0.7),
+        }
+
+    def _selected_color(self, combo: QComboBox) -> tuple[float, float, float]:
+        return combo.currentData()
 
     def _wire_viewer_callbacks(self) -> None:
         self.viewer.canvas.on_add_text = self._on_add_text
@@ -628,7 +680,14 @@ class MainWindow(QMainWindow):
         try:
             if not self._record_before_edit("Add Text"):
                 return
-            self.doc.add_text(self.current_page, x, y, text.strip())
+            self.doc.add_text(
+                self.current_page,
+                x,
+                y,
+                text.strip(),
+                font_size=self.tool_styles.text.font_size,
+                color=self.tool_styles.text.color,
+            )
             self._refresh_page()
         except PDFDocumentError as exc:
             self._show_error("Annotation Error", str(exc))
@@ -638,7 +697,12 @@ class MainWindow(QMainWindow):
         try:
             if not self._record_before_edit("Highlight"):
                 return
-            self.doc.add_highlight_rect(self.current_page, fitz.Rect(x1, y1, x2, y2))
+            self.doc.add_highlight_rect(
+                self.current_page,
+                fitz.Rect(x1, y1, x2, y2),
+                color=self.tool_styles.highlight.color,
+                opacity=self.tool_styles.highlight.opacity,
+            )
             self._refresh_page()
         except PDFDocumentError as exc:
             self._show_error("Annotation Error", str(exc))
@@ -650,7 +714,12 @@ class MainWindow(QMainWindow):
         try:
             if not self._record_before_edit("Freehand"):
                 return
-            self.doc.add_freehand(self.current_page, pdf_points)
+            self.doc.add_freehand(
+                self.current_page,
+                pdf_points,
+                color=self.tool_styles.freehand.color,
+                width=self.tool_styles.freehand.width,
+            )
             self._refresh_page()
         except PDFDocumentError as exc:
             self._show_error("Annotation Error", str(exc))
