@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import fitz
 from PySide6.QtCore import Qt
@@ -29,6 +30,7 @@ from .thumbnails import ThumbnailSidebar
 from .tools import ToolMode
 from .viewer import PDFViewer
 from .styles import ToolStyles
+from .print_workflow import PrintAssistBuilderDialog
 
 
 class MainWindow(QMainWindow):
@@ -140,6 +142,8 @@ class MainWindow(QMainWindow):
         self.tool_highlight_action.triggered.connect(lambda: self.set_tool(ToolMode.HIGHLIGHT))
         self.tool_draw_action = QAction("Freehand", self)
         self.tool_draw_action.triggered.connect(lambda: self.set_tool(ToolMode.FREEHAND))
+        self.print_assist_builder_action = QAction("Print Assist Builder", self)
+        self.print_assist_builder_action.triggered.connect(self.open_print_assist_builder)
 
         for a in [self.open_action, self.save_action, self.close_action, self.exit_action]:
             file_menu.addAction(a)
@@ -149,7 +153,7 @@ class MainWindow(QMainWindow):
             page_menu.addAction(a)
         for a in [self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action]:
             view_menu.addAction(a)
-        for a in [self.tool_view_action, self.tool_select_annotation_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
+        for a in [self.tool_view_action, self.tool_select_annotation_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action, self.print_assist_builder_action]:
             tool_menu.addAction(a)
 
         for a in [self.open_action, self.save_action, self.undo_action, self.redo_action, self.prev_action, self.next_action, self.zoom_in_action, self.zoom_out_action, self.fit_width_action, self.fit_page_action, self.rotate_cw_action, self.rotate_ccw_action, self.delete_page_action, self.insert_pages_action, self.move_page_up_action, self.move_page_down_action, self.duplicate_page_action, self.extract_current_page_action, self.tool_view_action, self.tool_select_annotation_action, self.tool_text_action, self.tool_highlight_action, self.tool_draw_action]:
@@ -319,12 +323,16 @@ class MainWindow(QMainWindow):
             return False
 
     def open_pdf(self) -> None:
-        if not self._confirm_discard_unsaved_changes():
-            return
         path, _ = QFileDialog.getOpenFileName(self, "Open PDF", "", "PDF Files (*.pdf)")
         if not path:
             return
+        self.open_pdf_path(path)
 
+    def open_pdf_path(self, path: str | Path) -> bool:
+        if not self._confirm_discard_unsaved_changes():
+            return False
+
+        path = str(path)
         password: str | None = None
         max_attempts = 3
         attempts = 0
@@ -343,7 +351,7 @@ class MainWindow(QMainWindow):
                     )
                     if not ok:
                         self.statusBar().showMessage("Password entry cancelled.")
-                        return
+                        return False
                     password = text
                     attempts += 1
                     continue
@@ -351,7 +359,7 @@ class MainWindow(QMainWindow):
                     attempts += 1
                     if attempts >= max_attempts:
                         self._show_error("Open Error", message)
-                        return
+                        return False
                     retry = QMessageBox.question(
                         self,
                         "Open Error",
@@ -361,7 +369,7 @@ class MainWindow(QMainWindow):
                     )
                     if retry != QMessageBox.Yes:
                         self.statusBar().showMessage("Password entry cancelled.")
-                        return
+                        return False
                     text, ok = QInputDialog.getText(
                         self,
                         "Password Required",
@@ -370,11 +378,11 @@ class MainWindow(QMainWindow):
                     )
                     if not ok:
                         self.statusBar().showMessage("Password entry cancelled.")
-                        return
+                        return False
                     password = text
                     continue
                 self._show_error("Open Error", message)
-                return
+                return False
 
         self.current_page = 0
         self.clear_selected_annotation()
@@ -384,6 +392,11 @@ class MainWindow(QMainWindow):
         self._update_ui_state()
         self._refresh_thumbnails()
         self._refresh_page()
+        return True
+
+    def open_print_assist_builder(self) -> None:
+        dialog = PrintAssistBuilderDialog(self, open_pdf_callback=self.open_pdf_path)
+        dialog.exec()
 
     def save_as(self) -> None:
         if not self.doc.is_open:

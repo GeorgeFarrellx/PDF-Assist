@@ -19,6 +19,10 @@
 - [pdf_assist/thumbnails.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/thumbnails.py)
 - [pdf_assist/tools.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/tools.py)
 - [pdf_assist/styles.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/styles.py)
+- [pdf_assist/print_file_utils.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/print_file_utils.py)
+- [pdf_assist/print_office_converter.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/print_office_converter.py)
+- [pdf_assist/print_pdf_builder.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/print_pdf_builder.py)
+- [pdf_assist/print_workflow.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/print_workflow.py)
 
 ## Current Implemented Capabilities
 
@@ -37,11 +41,14 @@
 - Thumbnail sidebar for page previews, click-to-navigate page selection, and drag-and-drop page reordering.
 - Text-layer PDF search across all pages with result navigation (previous/next), result count, and non-destructive search overlays on the current page.
 - Password-protected PDFs can be opened with a user-entered password prompt.
+- Native Print Assist Builder dialog in Tools menu for mixed-file print-ready PDF workflows (add files/folder/client folder, reorder/remove/clear, choose output, create preview in background, save final from exact preview copy, print/open preview, and open output folder).
 
 ## Known Limitations
 
 - MVP scope only; direct editing of existing PDF text is not implemented.
-- No OCR functionality.
+- No OCR functionality in either the core viewer/editor or Print Assist Builder workflow.
+- Office/Outlook conversions (DOC/DOCX/XLS/XLSX/XLSM/XLSB/MSG to temporary PDFs) require Windows + pywin32 + Microsoft Office/Outlook and fail with clear errors when unavailable.
+- Print Preview PDF action uses Windows/default PDF print handling where supported; non-Windows platforms show an unsupported message.
 - Thumbnail drag-and-drop reorder updates the document page order and uses the same undo/redo snapshot model as other page edits.
 - Undo/redo uses in-memory PDF snapshots; very large PDFs may use more memory.
 - PDF permissions/security restrictions are respected; PDF Assist does not bypass passwords or crack encrypted files.
