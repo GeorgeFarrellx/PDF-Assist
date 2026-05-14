@@ -18,6 +18,7 @@
 - [pdf_assist/viewer.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/viewer.py)
 - [pdf_assist/thumbnails.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/thumbnails.py)
 - [pdf_assist/tools.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/tools.py)
+- [pdf_assist/styles.py](https://raw.githubusercontent.com/GeorgeFarrellx/PDF-Assist/main/pdf_assist/styles.py)
 
 ## Current Implemented Capabilities
 
@@ -27,6 +28,7 @@
 - Zoom in/out and fit width/page.
 - Rotate, delete, insert, move up/down, and duplicate pages.
 - Add text, highlight rectangles, and freehand drawing annotations.
+- Style controls for newly inserted text, highlight annotations, and freehand drawing (newly created content only).
 - Select existing annotations and delete only the selected annotation with confirmation.
 - Move selected annotations by dragging the selection overlay or by arrow-key nudging.
 - Undo/redo for page operations and annotation edits.

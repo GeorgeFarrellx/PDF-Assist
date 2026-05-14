@@ -250,24 +250,44 @@ class PDFDocument:
         finally:
             out_doc.close()
 
-    def add_text(self, page_index: int, x: float, y: float, text: str, font_size: float = 14) -> None:
+    def add_text(
+        self,
+        page_index: int,
+        x: float,
+        y: float,
+        text: str,
+        font_size: float = 14,
+        color: tuple[float, float, float] = (0, 0, 0),
+    ) -> None:
         if not self.doc:
             raise PDFDocumentError("No document loaded.")
         page = self.doc.load_page(page_index)
-        page.insert_text((x, y), text, fontsize=font_size, color=(0, 0, 0))
+        page.insert_text((x, y), text, fontsize=font_size, color=color)
         self._dirty = True
 
-    def add_highlight_rect(self, page_index: int, rect: fitz.Rect) -> None:
+    def add_highlight_rect(
+        self,
+        page_index: int,
+        rect: fitz.Rect,
+        color: tuple[float, float, float] = (1, 1, 0),
+        opacity: float = 0.35,
+    ) -> None:
         if not self.doc:
             raise PDFDocumentError("No document loaded.")
         page = self.doc.load_page(page_index)
         annot = page.add_rect_annot(rect)
-        annot.set_colors(stroke=(1, 1, 0), fill=(1, 1, 0))
-        annot.set_opacity(0.35)
+        annot.set_colors(stroke=color, fill=color)
+        annot.set_opacity(opacity)
         annot.update()
         self._dirty = True
 
-    def add_freehand(self, page_index: int, points: Iterable[tuple[float, float]]) -> None:
+    def add_freehand(
+        self,
+        page_index: int,
+        points: Iterable[tuple[float, float]],
+        color: tuple[float, float, float] = (1, 0, 0),
+        width: float = 2,
+    ) -> None:
         if not self.doc:
             raise PDFDocumentError("No document loaded.")
         pts = list(points)
@@ -275,8 +295,8 @@ class PDFDocument:
             return
         page = self.doc.load_page(page_index)
         annot = page.add_ink_annot([pts])
-        annot.set_colors(stroke=(1, 0, 0))
-        annot.set_border(width=2)
+        annot.set_colors(stroke=color)
+        annot.set_border(width=width)
         annot.update()
         self._dirty = True
 
