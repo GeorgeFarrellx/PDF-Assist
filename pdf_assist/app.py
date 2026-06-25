@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 
 from .document import PDFDocument, PDFDocumentError
 from .history import HistoryEntry, PDFHistory
+from .icons import application_icon, set_windows_app_user_model_id
 from .search import SearchState
 from .thumbnails import ThumbnailSidebar
 from .tools import ToolMode
@@ -872,7 +873,13 @@ class MainWindow(QMainWindow):
 
 
 def run() -> None:
+    set_windows_app_user_model_id()
     app = QApplication(sys.argv)
+    app.setApplicationName("PDF Assist")
+    app.setApplicationDisplayName("PDF Assist")
+    app_icon = application_icon()
+    app.setWindowIcon(app_icon)
     window = MainWindow()
+    window.setWindowIcon(app_icon)
     window.show()
     sys.exit(app.exec())
